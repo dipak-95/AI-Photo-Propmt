@@ -142,8 +142,16 @@ const UploadImage = ({ onClose, onUploadSuccess }) => {
                                     placeholder="Paste image URL here (https://...)"
                                     value={image}
                                     onChange={(e) => {
-                                        setImage(e.target.value);
-                                        setPreview(e.target.value);
+                                        let val = e.target.value;
+                                        // Auto-convert Google Drive Links
+                                        if (val.includes('drive.google.com') && val.includes('/file/d/')) {
+                                            const match = val.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                                            if (match && match[1]) {
+                                                val = `https://drive.google.com/uc?export=view&id=${match[1]}`;
+                                            }
+                                        }
+                                        setImage(val);
+                                        setPreview(val);
                                     }}
                                 />
                                 {preview && (
