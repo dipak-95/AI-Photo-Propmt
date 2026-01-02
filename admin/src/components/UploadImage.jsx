@@ -16,28 +16,23 @@ const UploadImage = ({ onClose, onUploadSuccess }) => {
 
     const uploadFileHandler = async (e) => {
         const file = e.target.files[0];
-        const formData = new FormData();
-        formData.append('image', file);
+        if (!file) return;
 
         setPreview(URL.createObjectURL(file));
-
         setLoading(true);
-        try {
-            const config = {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            };
 
-            const { data } = await axios.post('http://localhost:5000/api/upload', formData, config);
-            setImage(`http://localhost:5000${data.filePath}`);
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = () => {
+            setImage(reader.result);
             setLoading(false);
-            toast.success('Image Uploaded Temp!');
-        } catch (error) {
-            console.error(error);
+            toast.success('Image Ready to Publish!');
+        };
+        reader.onerror = () => {
+            console.error('File reading failed');
             setLoading(false);
-            toast.error('File Upload Failed');
-        }
+            toast.error('Failed to process image');
+        };
     };
 
     const handleTagKeyDown = (e) => {
@@ -65,7 +60,7 @@ const UploadImage = ({ onClose, onUploadSuccess }) => {
 
         setLoading(true);
         try {
-            await axios.post('http://localhost:5000/api/images', {
+            await axios.post('https://ai-photo-propmt.onrender.com/api/images', {
                 prompt,
                 style,
                 imageUrl: image,
