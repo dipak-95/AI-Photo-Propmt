@@ -14,24 +14,32 @@ const UploadImage = ({ onClose, onUploadSuccess }) => {
     const [preview, setPreview] = useState(null);
     const [uploadMode, setUploadMode] = useState('file');
 
-    const uploadFileHandler = async (e) => {
+    const uploadFileHandler = (e) => {
         const file = e.target.files[0];
-        if (!file) return;
+        if (!file) {
+            console.log('No file selected');
+            return;
+        }
 
-        setPreview(URL.createObjectURL(file));
-        setLoading(true);
+        console.log('File selected:', file.name, file.size);
 
+        // Preview immediately
+        const objectRen = URL.createObjectURL(file);
+        setPreview(objectRen);
+
+        // Convert to Base64
         const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onloadend = () => {
-            setImage(reader.result);
-            setLoading(false);
-            toast.success('Image Ready to Publish!');
+
+        reader.onload = () => {
+            console.log('Base64 conversion successful');
+            setImage(reader.result); // This sets the main state used for publishing
+            toast.success('Image Ready!');
         };
-        reader.onerror = () => {
-            console.error('File reading failed');
-            setLoading(false);
-            toast.error('Failed to process image');
+
+        reader.onerror = (error) => {
+            console.error('Error reading file:', error);
+            toast.error('Could not read file');
         };
     };
 
