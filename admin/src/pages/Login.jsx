@@ -14,7 +14,7 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const { data } = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+            const { data } = await axios.post('https://ai-photo-propmt.onrender.com/api/auth/login', { email, password }); // Force HTTPS
             login(data);
             navigate('/');
             toast.success('Login Successful');
