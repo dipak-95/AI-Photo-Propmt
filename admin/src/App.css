@@ -1,0 +1,5 @@
+/* Reseting default App styles that constrain layout */
+#root {
+  width: 100%;
+  height: 100%;
+}

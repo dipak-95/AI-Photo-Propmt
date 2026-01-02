@@ -1,0 +1,169 @@
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    /* Allow wrapping on small screens */
+    gap: 15px;
+}
+
+.page-header h2 {
+    margin: 0;
+}
+
+.add-btn {
+    background: #00ca72;
+    border: none;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.add-btn:hover {
+    background: #00b365;
+    transform: translateY(-2px);
+}
+
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    /* Slightly smaller for flexibility */
+    gap: 20px;
+}
+
+.image-card {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s;
+    display: flex;
+    flex-direction: column;
+}
+
+.image-card:hover {
+    transform: translateY(-5px);
+}
+
+.card-img {
+    height: 200px;
+    position: relative;
+    overflow: hidden;
+}
+
+.card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.card-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+/* On specific touch devices we might want to show overlay or handle differently 
+   but hover usually works fine or we can add a delete button visible always on mobile */
+@media (hover: none) {
+    .card-overlay {
+        opacity: 1;
+        background: transparent;
+        justify-content: flex-end;
+        align-items: flex-start;
+        padding: 10px;
+    }
+}
+
+.image-card:hover .card-overlay {
+    opacity: 1;
+}
+
+.delete-btn {
+    background: #ff4757;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.delete-btn:hover {
+    transform: scale(1.1);
+}
+
+.card-body {
+    padding: 15px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.style-tag {
+    background: #eef2f7;
+    color: #556080;
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    align-self: flex-start;
+    margin-bottom: 8px;
+}
+
+.prompt-text {
+    margin: 0;
+    color: #333;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-clamp: 2;
+    /* Added for standard property compatibility */
+}
+
+.loader {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #888;
+    margin-top: 50px;
+}
+
+/* Mobile specific tweaks */
+@media (max-width: 480px) {
+    .image-grid {
+        grid-template-columns: 1fr;
+        /* Full width on very small screens */
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .add-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
