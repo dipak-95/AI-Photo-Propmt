@@ -12,11 +12,12 @@ const Dashboard = () => {
 
     const fetchImages = async () => {
         try {
-            const { data } = await axios.get('http://localhost:5000/api/images');
+            const { data } = await axios.get('https://ai-photo-propmt.onrender.com/api/images');
             setImages(data.images);
             setLoading(false);
         } catch (error) {
-            console.error('Error fetching images');
+            console.error('Error fetching images', error);
+            toast.error(`Error: ${error.message}`);
             setLoading(false);
         }
     };
@@ -28,7 +29,7 @@ const Dashboard = () => {
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this image?')) {
             try {
-                await axios.delete(`http://localhost:5000/api/images/${id}`);
+                await axios.delete(`https://ai-photo-propmt.onrender.com/api/images/${id}`);
                 setImages(images.filter(img => img._id !== id));
                 toast.success('Image Deleted');
             } catch (error) {
