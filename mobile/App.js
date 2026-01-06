@@ -2,7 +2,7 @@ import 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, TextInput, ScrollView, Alert, Platform, Linking, ToastAndroid, Share } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, TextInput, ScrollView, Alert, Platform, Linking, ToastAndroid, Share, RefreshControl } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -29,6 +29,7 @@ const Stack = createStackNavigator();
 function HomeScreen({ setFavorites, favorites }) {
   const [prompts, setPrompts] = useState([]);
   const [search, setSearch] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -46,10 +47,16 @@ function HomeScreen({ setFavorites, favorites }) {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPrompts();
+    setRefreshing(false);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>PEARL</Text>
+        <Text style={styles.headerTitle}>AI Photo Prompt - Pearl</Text>
       </View>
 
       <View style={styles.searchContainer}>
@@ -62,7 +69,17 @@ function HomeScreen({ setFavorites, favorites }) {
         />
       </View>
 
-      <ScrollView contentContainerStyle={styles.grid}>
+      <ScrollView
+        contentContainerStyle={styles.grid}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#D946EF"
+            colors={['#D946EF']}
+          />
+        }
+      >
         <View style={styles.columnWrapper}>
           {prompts.filter(p => p.title.toLowerCase().includes(search.toLowerCase())).map((item) => (
             <TouchableOpacity

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Pearl AI",
+    "name": "AI Photo Prompt - Pearl",
     "slug": "pearl-ai",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -20,7 +20,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.dipak.pearlai"
     },
     "web": {
       "favicon": "./assets/favicon.png"

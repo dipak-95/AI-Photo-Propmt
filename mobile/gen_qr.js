@@ -1,7 +1,7 @@
 const QRCode = require('qrcode');
 const fs = require('fs');
 
-const url = 'exp://10.33.107.169:8081';
+const url = 'exp://10.33.107.169:8084';
 
 QRCode.toFile('qrcode.png', url, {
     color: {
