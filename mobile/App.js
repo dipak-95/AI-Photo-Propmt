@@ -14,8 +14,8 @@ import { Animated } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as IntentLauncher from 'expo-intent-launcher';
 
-// API URL - Using specific LAN IP for physical device testing
-const API_URL = 'http://10.33.107.169:3000/api/prompts';
+// API URL - Using Vercel Production
+const API_URL = 'https://ai-photo-propmt-six.vercel.app/api/prompts';
 
 // Mock Data fallback
 const MOCK_DATA = [
