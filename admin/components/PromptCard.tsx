@@ -1,12 +1,12 @@
 'use client';
 
 import { Edit, Trash2, Copy, Sparkles } from 'lucide-react';
-import type { Prompt } from '@/lib/storage';
+import type { PromptData } from '@/lib/storage';
 
 interface PromptCardProps {
-    prompt: Prompt;
+    prompt: PromptData;
     onDelete: (id: string) => void;
-    onEdit: (prompt: Prompt) => void;
+    onEdit: (prompt: PromptData) => void;
 }
 
 export default function PromptCard({ prompt, onDelete, onEdit }: PromptCardProps) {

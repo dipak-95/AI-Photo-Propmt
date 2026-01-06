@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { Plus, Search, Filter } from 'lucide-react';
 import Link from 'next/link';
 import PromptCard from '@/components/PromptCard';
-import type { Prompt } from '@/lib/storage';
+import type { PromptData } from '@/lib/storage';
 
 export default function DashboardPage() {
-    const [prompts, setPrompts] = useState<Prompt[]>([]);
+    const [prompts, setPrompts] = useState<PromptData[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
 
@@ -36,7 +36,7 @@ export default function DashboardPage() {
         await fetch(`/api/prompts/${id}`, { method: 'DELETE' });
     };
 
-    const handleEdit = (prompt: Prompt) => {
+    const handleEdit = (prompt: PromptData) => {
         window.location.href = `/dashboard/edit/${prompt.id}`;
     };
 
