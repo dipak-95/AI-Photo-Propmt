@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #D946EF;
+  --color-primary-dark: #C026D3;
+  --color-secondary: #06B6D4;
+  --color-background: #0a0a0a;
+  --color-surface: #171717;
+  --color-surface-hover: #262626;
+  
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+/* Custom Utilities for Glassmorphism */
+@utility glass {
+  background: rgba(23, 23, 23, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@utility glass-card {
+  background: rgba(30, 30, 30, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+body {
+  background-color: var(--color-background);
+  color: #ededed;
+  font-family: var(--font-sans);
+}
+
+/* Gradient Text */
+.text-gradient {
+  background: linear-gradient(to right, #D946EF, #06B6D4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

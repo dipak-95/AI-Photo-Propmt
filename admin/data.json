@@ -1,0 +1,43 @@
+[
+  {
+    "title": "Dwarka",
+    "prompt": "Dwarka image crate ",
+    "imageUrl": "https://www.ourvadodara.com/wp-content/uploads/2020/07/dwarka-dwarkadeesh-temple-148826502858-orijgp.jpg",
+    "style": "Cinematic",
+    "keywords": [
+      "Dwarka",
+      "KaliyoThakar",
+      "krushna"
+    ],
+    "id": "c4fvxo",
+    "createdAt": "2026-01-06T12:42:43.373Z"
+  },
+  {
+    "id": "1",
+    "title": "Updated Title Test",
+    "prompt": "A futuristic city with neon lights, raining, reflections on the street, high detail, 8k, cinematic lighting, cyberpunk style",
+    "imageUrl": "https://images.unsplash.com/photo-1515630278258-407f66498911?q=80&w=2998&auto=format&fit=crop",
+    "style": "Cinematic",
+    "keywords": [
+      "cyberpunk",
+      "neon",
+      "city",
+      "future"
+    ],
+    "createdAt": "2026-01-06T04:22:26.332Z"
+  },
+  {
+    "id": "2",
+    "title": "Golden Retriever Portrait",
+    "prompt": "A cute golden retriever puppy sitting in a field of sunflowers, golden hour lighting, shallow depth of field, hyper realistic, photography",
+    "imageUrl": "https://images.unsplash.com/photo-1633722715463-d30f4f325e24?q=80&w=2787&auto=format&fit=crop",
+    "style": "Realistic",
+    "keywords": [
+      "dog",
+      "puppy",
+      "nature",
+      "cute"
+    ],
+    "createdAt": "2026-01-06T04:22:26.332Z"
+  }
+]
