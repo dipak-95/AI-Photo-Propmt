@@ -136,12 +136,11 @@ function DetailsScreen({ route, favorites, setFavorites }) {
 
   const onShare = async () => {
     try {
-      const message = `✨ ${item.title}\n\n🎨 Style: ${item.style}\n\n📝 Prompt:\n${item.prompt}\n\n🖼️ View Image: ${item.imageUrl}\n\nShared via Pearl AI App 🔮`;
+      const message = `${item.prompt}\n\nShared via AI Photo Prompt - Pearl`;
 
       await Share.share({
         message: message,
-        url: item.imageUrl, // iOS: Adds image link preview
-        title: 'Check out this AI Prompt!'
+        title: 'Share Prompt'
       });
     } catch (error) {
       Alert.alert('Error', error.message);
