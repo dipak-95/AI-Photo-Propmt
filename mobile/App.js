@@ -14,8 +14,8 @@ import { Animated } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as IntentLauncher from 'expo-intent-launcher';
 
-// API URL - Using Hostinger VPS
-const API_URL = 'http://72.62.195.222:3000/api/prompts';
+// API URL - Using Hostinger VPS (SSL Connected)
+const API_URL = 'https://sdkv.online/api/prompts';
 
 // Mock Data fallback
 const MOCK_DATA = [
