@@ -8,7 +8,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
     const body = await request.json();
-    const { title, prompt, imageUrl, style, keywords } = body;
+    const { title, prompt, imageUrl, style, keywords, category } = body;
 
     if (!prompt || !imageUrl) {
         return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
@@ -20,6 +20,7 @@ export async function POST(request: Request) {
         imageUrl,
         style: style || 'General',
         keywords: keywords || [],
+        category: category || 'Men',
     });
 
     return NextResponse.json(newPrompt);

@@ -9,6 +9,7 @@ export interface PromptData {
     imageUrl: string;
     style: string;
     keywords: string[];
+    category: string;
     createdAt: string;
 }
 
@@ -21,6 +22,7 @@ function mapDoc(doc: any): PromptData {
         imageUrl: doc.imageUrl,
         style: doc.style,
         keywords: doc.keywords,
+        category: doc.category || 'Men', // Default to Men for existing data
         createdAt: doc.createdAt.toISOString(),
     };
 }

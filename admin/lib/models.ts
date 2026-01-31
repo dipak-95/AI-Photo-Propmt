@@ -21,6 +21,10 @@ const PromptSchema = new Schema({
         type: [String],
         default: [],
     },
+    category: {
+        type: String,
+        default: 'Men',
+    },
     createdAt: {
         type: Date,
         default: Date.now,

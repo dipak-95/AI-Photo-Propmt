@@ -27,7 +27,19 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-9701184278274967~4794455548",
+          "iosAppId": "ca-app-pub-9701184278274967~4794455548"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "571a88eb-b8c0-44c0-9e94-c6884e8913c5"
+      }
+    }
   }
 }

@@ -6,7 +6,11 @@ import Link from 'next/link';
 import PromptCard from '@/components/PromptCard';
 import type { PromptData } from '@/lib/storage';
 
+import { useSearchParams } from 'next/navigation';
+
 export default function DashboardPage() {
+    const searchParams = useSearchParams();
+    const category = searchParams.get('category');
     const [prompts, setPrompts] = useState<PromptData[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -42,9 +46,10 @@ export default function DashboardPage() {
 
     // Filter
     const filteredPrompts = prompts.filter(p =>
-        p.title.toLowerCase().includes(search.toLowerCase()) ||
-        p.style.toLowerCase().includes(search.toLowerCase()) ||
-        p.keywords.some(k => k.toLowerCase().includes(search.toLowerCase()))
+        (p.title.toLowerCase().includes(search.toLowerCase()) ||
+            p.style.toLowerCase().includes(search.toLowerCase()) ||
+            p.keywords.some(k => k.toLowerCase().includes(search.toLowerCase()))) &&
+        (!category || (p.category === category) || (!p.category && category === 'Men')) // Default legacy docs to Men
     );
 
     return (
@@ -52,7 +57,7 @@ export default function DashboardPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Prompts Library</h1>
+                    <h1 className="text-3xl font-bold text-white">Prompts Library {category && `- ${category}`}</h1>
                     <p className="text-gray-400 mt-1">Manage your AI generated masterpieces</p>
                 </div>
 

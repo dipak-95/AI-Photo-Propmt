@@ -2,18 +2,19 @@ import 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, TextInput, ScrollView, Alert, Platform, Linking, ToastAndroid, Share, RefreshControl } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, TextInput, ScrollView, Alert, Platform, Linking, ToastAndroid, Share, RefreshControl, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { Home, Heart, Settings, ArrowRight, Shield, HelpCircle, Info, ChevronLeft, ChevronRight, Copy, ExternalLink, Share2 } from 'lucide-react-native';
+import { Home, Heart, Settings, ArrowRight, Shield, HelpCircle, Info, ChevronLeft, ChevronRight, Copy, ExternalLink, Share2, User, Sparkles, ShoppingBag } from 'lucide-react-native';
 import { useRef } from 'react';
 import { Animated } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as IntentLauncher from 'expo-intent-launcher';
 
+// API URL - Using Hostinger VPS (SSL Connected)
 // API URL - Using Hostinger VPS (SSL Connected)
 const API_URL = 'https://sdkv.online/api/prompts';
 
@@ -26,24 +27,97 @@ const MOCK_DATA = [
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-function HomeScreen({ setFavorites, favorites }) {
-  const [prompts, setPrompts] = useState([]);
+const FeedCard = ({ item, navigation, opacity }) => {
+  const [imageLoading, setImageLoading] = useState(true);
+
+  return (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => navigation.navigate('Details', { item })}
+    >
+      <View>
+        <Image
+          source={{ uri: item.imageUrl }}
+          style={styles.cardImage}
+          onLoadEnd={() => setImageLoading(false)}
+        />
+        {imageLoading && (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: '#1a1a1a',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 1
+              }
+            ]}
+          >
+            <ActivityIndicator size="small" color="#D946EF" />
+          </View>
+        )}
+      </View>
+      <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+    </TouchableOpacity>
+  );
+};
+
+function FeedScreen({ setFavorites, favorites, category, navigation }) {
+  const [allPrompts, setAllPrompts] = useState([]);
+  const [displayedPrompts, setDisplayedPrompts] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const navigation = useNavigation();
+  const { width } = useWindowDimensions();
+
+  // Animation for skeleton
+  const opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 1000, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 1000, useNativeDriver: true })
+      ])
+    ).start();
+  }, []);
 
   useEffect(() => {
     fetchPrompts();
   }, []);
 
+  useEffect(() => {
+    // Filter and slice whenever search, allPrompts, or visibleCount changes
+    const filtered = allPrompts.filter(p => p.title.toLowerCase().includes(search.toLowerCase()));
+    setDisplayedPrompts(filtered.slice(0, visibleCount));
+  }, [search, allPrompts, visibleCount]);
+
   const fetchPrompts = async () => {
+    setLoading(true);
+
+    // Strict Rule: The current API data is ONLY for the 'Men' section.
+    if (category !== 'Men') {
+      // For Women, Product, etc., we currently have no data.
+      // So we set empty array and stop loading immediately (or with small delay).
+      setTimeout(() => {
+        setAllPrompts([]); // Show nothing
+        setLoading(false);
+      }, 500);
+      return;
+    }
+
     try {
       const res = await fetch(API_URL);
       const data = await res.json();
-      setPrompts(data.length ? data : MOCK_DATA);
+      const finalData = data.length ? data : MOCK_DATA;
+      setAllPrompts(finalData);
     } catch (e) {
       console.log('Error fetching, using mock:', e);
-      setPrompts(MOCK_DATA);
+      setAllPrompts(MOCK_DATA);
+    } finally {
+      // Fake delay for seeing animation implies premium feel (only for Men who have data)
+      setTimeout(() => setLoading(false), 1500);
     }
   };
 
@@ -51,51 +125,141 @@ function HomeScreen({ setFavorites, favorites }) {
     setRefreshing(true);
     await fetchPrompts();
     setRefreshing(false);
+    setVisibleCount(10); // Reset on refresh
   };
+
+  const loadMore = () => {
+    setVisibleCount(prev => prev + 20);
+  };
+
+  const LoadingSkeleton = () => (
+    <View style={styles.columnWrapper}>
+      {[...Array(6)].map((_, i) => (
+        <Animated.View
+          key={i}
+          style={[
+            styles.card,
+            {
+              height: 200,
+              backgroundColor: '#1a1a1a',
+              borderColor: '#333',
+              opacity: opacity
+            }
+          ]}
+        />
+      ))}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>AI Photo Prompt - Pearl</Text>
+        <Text style={styles.headerTitle}>{category === 'Men' ? 'AI Photo Prompt - Pearl' : category}</Text>
       </View>
 
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search styles or keywords..."
+          placeholder={`Search ${category} styles...`}
           placeholderTextColor="#666"
           value={search}
           onChangeText={setSearch}
         />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.grid}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#D946EF"
-            colors={['#D946EF']}
-          />
-        }
-      >
-        <View style={styles.columnWrapper}>
-          {prompts.filter(p => p.title.toLowerCase().includes(search.toLowerCase())).map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.card}
-              onPress={() => navigation.navigate('Details', { item })}
-            >
-              <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
-              <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-            </TouchableOpacity>
-          ))}
+      {loading ? (
+        <View style={styles.grid}>
+          <LoadingSkeleton />
         </View>
-      </ScrollView>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.grid}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#D946EF"
+              colors={['#D946EF']}
+            />
+          }
+        >
+          <View style={styles.columnWrapper}>
+            {displayedPrompts.map((item) => (
+              <FeedCard
+                key={item.id}
+                item={item}
+                navigation={navigation}
+                opacity={opacity}
+              />
+            ))}
+          </View>
+
+          {displayedPrompts.length < allPrompts.filter(p => p.title.toLowerCase().includes(search.toLowerCase())).length && (
+            <TouchableOpacity onPress={loadMore} style={styles.loadMoreBtn}>
+              <Text style={styles.loadMoreText}>Load More</Text>
+            </TouchableOpacity>
+          )}
+
+          <View style={{ height: 20 }} />
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
+
+// Stacks for each tab to handle navigation
+function MenStackScreen({ favorites, setFavorites }) {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: '#0a0a0a' } }}>
+      <Stack.Screen name="MenFeed">
+        {(props) => <FeedScreen {...props} category="Men" setFavorites={setFavorites} favorites={favorites} />}
+      </Stack.Screen>
+      <Stack.Screen name="Details">
+        {(props) => <DetailsScreen {...props} setFavorites={setFavorites} favorites={favorites} />}
+      </Stack.Screen>
+    </Stack.Navigator>
+  )
+}
+
+function WomenStackScreen({ favorites, setFavorites }) {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: '#0a0a0a' } }}>
+      <Stack.Screen name="WomenFeed">
+        {(props) => <FeedScreen {...props} category="Women" setFavorites={setFavorites} favorites={favorites} />}
+      </Stack.Screen>
+      <Stack.Screen name="Details">
+        {(props) => <DetailsScreen {...props} setFavorites={setFavorites} favorites={favorites} />}
+      </Stack.Screen>
+    </Stack.Navigator>
+  )
+}
+
+function ProductStackScreen({ favorites, setFavorites }) {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: '#0a0a0a' } }}>
+      <Stack.Screen name="ProductFeed">
+        {(props) => <FeedScreen {...props} category="Product" setFavorites={setFavorites} favorites={favorites} />}
+      </Stack.Screen>
+      <Stack.Screen name="Details">
+        {(props) => <DetailsScreen {...props} setFavorites={setFavorites} favorites={favorites} />}
+      </Stack.Screen>
+    </Stack.Navigator>
+  )
+}
+
+function FavoritesStackScreen({ favorites, setFavorites }) {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: '#0a0a0a' } }}>
+      <Stack.Screen name="FavFeed">
+        {(props) => <FavoritesScreen {...props} favorites={favorites} />}
+      </Stack.Screen>
+      <Stack.Screen name="Details">
+        {(props) => <DetailsScreen {...props} setFavorites={setFavorites} favorites={favorites} />}
+      </Stack.Screen>
+    </Stack.Navigator>
+  )
+}
+
 
 function DetailsScreen({ route, favorites, setFavorites }) {
   const { item } = route.params;
@@ -216,7 +380,7 @@ function FavoritesScreen({ favorites, navigation }) {
             <TouchableOpacity
               key={item.id}
               style={styles.favCard}
-              onPress={() => navigation.navigate('HomeStack', { screen: 'Details', params: { item } })}
+              onPress={() => navigation.navigate('Details', { item })}
             >
               <Image source={{ uri: item.imageUrl }} style={styles.favImage} />
               <View style={{ flex: 1, padding: 10, justifyContent: 'center' }}>
@@ -339,24 +503,6 @@ function SettingsStackScreen() {
   )
 }
 
-function HomeStackScreen({ favorites, setFavorites }) {
-  return (
-    <Stack.Navigator screenOptions={{
-      headerShown: false,
-      presentation: 'card', // Enables standard iOS/Android push transitions
-      animationEnabled: true,
-      cardStyle: { backgroundColor: '#0a0a0a' }
-    }}>
-      <Stack.Screen name="Feed">
-        {(props) => <HomeScreen {...props} setFavorites={setFavorites} favorites={favorites} />}
-      </Stack.Screen>
-      <Stack.Screen name="Details">
-        {(props) => <DetailsScreen {...props} setFavorites={setFavorites} favorites={favorites} />}
-      </Stack.Screen>
-    </Stack.Navigator>
-  )
-}
-
 // Helper for safe area
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -381,29 +527,29 @@ function MainApp() {
           tabBarActiveTintColor: '#D946EF',
           tabBarInactiveTintColor: 'gray',
           tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
-            if (route.name === 'HomeStack') {
-              return <Home color={color} size={size} />;
-            } else if (route.name === 'Favorites') {
-              return <Heart color={color} size={size} />;
-            } else if (route.name === 'Settings') {
-              return <Settings color={color} size={size} />;
-            }
+            if (route.name === 'Men') return <User color={color} size={size} />;
+            if (route.name === 'Women') return <Sparkles color={color} size={size} />;
+            if (route.name === 'Product') return <ShoppingBag color={color} size={size} />;
+            if (route.name === 'Favorites') return <Heart color={color} size={size} />;
+            if (route.name === 'Settings') return <Settings color={color} size={size} />;
+            return null;
           },
           tabBarLabel: ({ focused }) => {
-            let label;
-            if (route.name === 'HomeStack') label = 'Home';
-            else if (route.name === 'Favorites') label = 'Favorites';
-            else if (route.name === 'Settings') label = 'Settings';
-            return <Text style={{ color: focused ? '#D946EF' : 'gray', fontSize: 10, marginTop: 4 }}>{label}</Text>;
+            return <Text style={{ color: focused ? '#D946EF' : 'gray', fontSize: 10, marginTop: 4 }}>{route.name}</Text>;
           }
         })}
       >
-        <Tab.Screen name="HomeStack">
-          {(props) => <HomeStackScreen {...props} favorites={favorites} setFavorites={setFavorites} />}
+        <Tab.Screen name="Men">
+          {(props) => <MenStackScreen {...props} favorites={favorites} setFavorites={setFavorites} />}
+        </Tab.Screen>
+        <Tab.Screen name="Women">
+          {(props) => <WomenStackScreen {...props} favorites={favorites} setFavorites={setFavorites} />}
+        </Tab.Screen>
+        <Tab.Screen name="Product">
+          {(props) => <ProductStackScreen {...props} favorites={favorites} setFavorites={setFavorites} />}
         </Tab.Screen>
         <Tab.Screen name="Favorites">
-          {(props) => <FavoritesScreen {...props} favorites={favorites} />}
+          {(props) => <FavoritesStackScreen {...props} favorites={favorites} setFavorites={setFavorites} />}
         </Tab.Screen>
         <Tab.Screen name="Settings" component={SettingsStackScreen} />
       </Tab.Navigator>
@@ -612,5 +758,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16
+  },
+  loadMoreBtn: {
+    padding: 15,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    alignItems: 'center',
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  loadMoreText: {
+    color: '#D946EF',
+    fontWeight: 'bold',
+    fontSize: 16,
   }
 });

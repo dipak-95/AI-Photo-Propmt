@@ -13,7 +13,8 @@ export default function AddPromptPage() {
         prompt: '',
         imageUrl: '',
         style: 'Cinematic',
-        keywords: ''
+        keywords: '',
+        category: 'Men'
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -75,6 +76,19 @@ export default function AddPromptPage() {
                                 value={formData.imageUrl}
                                 onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Category</label>
+                            <select
+                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 focus:outline-none appearance-none"
+                                value={formData.category}
+                                onChange={e => setFormData({ ...formData, category: e.target.value })}
+                            >
+                                <option value="Men">Men</option>
+                                <option value="Women">Women</option>
+                                <option value="Product">Product</option>
+                            </select>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
