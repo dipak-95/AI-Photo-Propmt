@@ -16,7 +16,8 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
         prompt: '',
         imageUrl: '',
         style: 'Cinematic',
-        keywords: ''
+        keywords: '',
+        category: 'Men'
     });
 
     useEffect(() => {
@@ -32,7 +33,8 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                         prompt: found.prompt,
                         imageUrl: found.imageUrl,
                         style: found.style,
-                        keywords: found.keywords.join(', ')
+                        keywords: found.keywords.join(', '),
+                        category: found.category || 'Men'
                     });
                 } else {
                     alert('Prompt not found');
@@ -57,7 +59,8 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
-                    keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k)
+                    keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
+                    category: formData.category
                 })
             });
             router.push('/dashboard');
@@ -123,6 +126,19 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                                 value={formData.imageUrl}
                                 onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Category</label>
+                            <select
+                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 focus:outline-none appearance-none"
+                                value={formData.category}
+                                onChange={e => setFormData({ ...formData, category: e.target.value })}
+                            >
+                                <option value="Men">Men</option>
+                                <option value="Women">Women</option>
+                                <option value="Product">Product</option>
+                            </select>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">

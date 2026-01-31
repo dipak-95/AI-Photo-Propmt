@@ -95,29 +95,25 @@ function FeedScreen({ setFavorites, favorites, category, navigation }) {
 
   const fetchPrompts = async () => {
     setLoading(true);
-
-    // Strict Rule: The current API data is ONLY for the 'Men' section.
-    if (category !== 'Men') {
-      // For Women, Product, etc., we currently have no data.
-      // So we set empty array and stop loading immediately (or with small delay).
-      setTimeout(() => {
-        setAllPrompts([]); // Show nothing
-        setLoading(false);
-      }, 500);
-      return;
-    }
-
     try {
       const res = await fetch(API_URL);
       const data = await res.json();
-      const finalData = data.length ? data : MOCK_DATA;
-      setAllPrompts(finalData);
+
+      // Filter data based on the current screen's category
+      // The API returns all prompts, so we filter valid items for this tab
+      const validData = data.filter(item => {
+        // Legacy support: if no category is present on item, assume 'Men'
+        const itemCategory = item.category || 'Men';
+        return itemCategory === category;
+      });
+
+      setAllPrompts(validData);
     } catch (e) {
-      console.log('Error fetching, using mock:', e);
-      setAllPrompts(MOCK_DATA);
+      console.log('Error fetching:', e);
+      // Only mock if absolutely failed, but prefer empty for valid categories with no data yet
+      setAllPrompts([]);
     } finally {
-      // Fake delay for seeing animation implies premium feel (only for Men who have data)
-      setTimeout(() => setLoading(false), 1500);
+      setTimeout(() => setLoading(false), 1000);
     }
   };
 
