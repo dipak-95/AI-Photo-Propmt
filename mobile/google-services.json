@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "767379685770",
+    "project_id": "pearl-production-6f9ad",
+    "storage_bucket": "pearl-production-6f9ad.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:767379685770:android:4f18ba59556291841cc873",
+        "android_client_info": {
+          "package_name": "com.dgpatel.tictactoewebapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDru-rEbxVw0ZPfRnsWg2Qh2Jcsx7BOOsk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:767379685770:android:66d0b1758aa5d8251cc873",
+        "android_client_info": {
+          "package_name": "com.dipak.pearlai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDru-rEbxVw0ZPfRnsWg2Qh2Jcsx7BOOsk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

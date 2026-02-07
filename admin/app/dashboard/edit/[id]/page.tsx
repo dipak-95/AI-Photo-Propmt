@@ -137,7 +137,6 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                             >
                                 <option value="Men">Men</option>
                                 <option value="Women">Women</option>
-                                <option value="Product">Product</option>
                             </select>
                         </div>
 

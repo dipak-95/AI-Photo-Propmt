@@ -2,12 +2,19 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Save, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { ChevronLeft, Save, Sparkles, Image as ImageIcon, Upload, Link as LinkIcon, X } from 'lucide-react';
 import Link from 'next/link';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function AddPromptPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [uploadMode, setUploadMode] = useState<'url' | 'upload'>('url');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState('');
+
     const [formData, setFormData] = useState({
         title: '',
         prompt: '',
@@ -17,28 +24,64 @@ export default function AddPromptPage() {
         category: 'Men'
     });
 
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setSelectedFile(file);
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreviewUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const uploadImageToFirebase = async (file: File): Promise<string> => {
+        const timestamp = Date.now();
+        const fileName = `prompts/${timestamp}_${file.name}`;
+        const storageRef = ref(storage, fileName);
+
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+        return downloadURL;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
+            let finalImageUrl = formData.imageUrl;
+
+            // If upload mode and file selected, upload to Firebase
+            if (uploadMode === 'upload' && selectedFile) {
+                setUploading(true);
+                finalImageUrl = await uploadImageToFirebase(selectedFile);
+                setUploading(false);
+            }
+
             await fetch('/api/prompts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
+                    imageUrl: finalImageUrl,
                     keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k)
                 })
             });
             router.push('/dashboard');
         } catch (error) {
             alert('Failed to save prompt');
+            setUploading(false);
         } finally {
             setLoading(false);
         }
     };
 
     const styles = ['Cinematic', 'Realistic', 'Funny', 'Artistic', 'Anime', '3D Render', 'Minimalist'];
+
+    const displayImageUrl = uploadMode === 'upload' ? previewUrl : formData.imageUrl;
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -67,15 +110,73 @@ export default function AddPromptPage() {
                             />
                         </div>
 
+                        {/* Image Upload/URL Toggle */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Image URL</label>
-                            <input
-                                required
-                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
-                                placeholder="https://..."
-                                value={formData.imageUrl}
-                                onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
-                            />
+                            <label className="block text-sm font-medium text-gray-400 mb-2">Image</label>
+                            <div className="flex gap-2 mb-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setUploadMode('url')}
+                                    className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${uploadMode === 'url'
+                                            ? 'bg-purple-500 text-white'
+                                            : 'bg-black/40 text-gray-400 border border-white/10'
+                                        }`}
+                                >
+                                    <LinkIcon className="w-4 h-4" />
+                                    URL
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setUploadMode('upload')}
+                                    className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${uploadMode === 'upload'
+                                            ? 'bg-purple-500 text-white'
+                                            : 'bg-black/40 text-gray-400 border border-white/10'
+                                        }`}
+                                >
+                                    <Upload className="w-4 h-4" />
+                                    Upload
+                                </button>
+                            </div>
+
+                            {uploadMode === 'url' ? (
+                                <input
+                                    required={uploadMode === 'url'}
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
+                                    placeholder="https://..."
+                                    value={formData.imageUrl}
+                                    onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
+                                />
+                            ) : (
+                                <div className="relative">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleFileSelect}
+                                        className="hidden"
+                                        id="file-upload"
+                                        required={uploadMode === 'upload'}
+                                    />
+                                    <label
+                                        htmlFor="file-upload"
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-gray-400 cursor-pointer hover:border-purple-500 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <Upload className="w-5 h-5" />
+                                        {selectedFile ? selectedFile.name : 'Choose image file'}
+                                    </label>
+                                    {selectedFile && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedFile(null);
+                                                setPreviewUrl('');
+                                            }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-red-500/20 rounded-lg hover:bg-red-500/30"
+                                        >
+                                            <X className="w-4 h-4 text-red-400" />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div>
@@ -87,7 +188,6 @@ export default function AddPromptPage() {
                             >
                                 <option value="Men">Men</option>
                                 <option value="Women">Women</option>
-                                <option value="Product">Product</option>
                             </select>
                         </div>
 
@@ -128,10 +228,17 @@ export default function AddPromptPage() {
 
                     <button
                         type="submit"
-                        disabled={loading}
-                        className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                        disabled={loading || uploading}
+                        className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {loading ? 'Saving...' : (
+                        {uploading ? (
+                            <>
+                                <Upload className="w-5 h-5 animate-pulse" />
+                                Uploading Image...
+                            </>
+                        ) : loading ? (
+                            'Saving...'
+                        ) : (
                             <>
                                 <Save className="w-5 h-5" />
                                 Save Prompt
@@ -144,10 +251,10 @@ export default function AddPromptPage() {
                 <div className="space-y-4">
                     <p className="text-sm font-medium text-gray-400">Preview</p>
                     <div className="glass-card rounded-2xl overflow-hidden aspect-[4/5] relative bg-black/40 flex items-center justify-center">
-                        {formData.imageUrl ? (
+                        {displayImageUrl ? (
                             <>
                                 <img
-                                    src={formData.imageUrl}
+                                    src={displayImageUrl}
                                     className="w-full h-full object-cover"
                                     alt="Preview"
                                     onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/400x500?text=Invalid+Image')}
