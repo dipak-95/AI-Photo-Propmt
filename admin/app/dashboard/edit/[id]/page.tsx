@@ -2,15 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Save, Trash2, Image as ImageIcon } from 'lucide-react';
+import { ChevronLeft, Save, Trash2, Image as ImageIcon, Upload, Link as LinkIcon, X } from 'lucide-react';
 import Link from 'next/link';
 import { use } from 'react';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function EditPromptPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
     const { id } = use(params);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [uploadMode, setUploadMode] = useState<'url' | 'upload'>('url');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState('');
+
     const [formData, setFormData] = useState({
         title: '',
         prompt: '',
@@ -36,6 +43,8 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                         keywords: found.keywords.join(', '),
                         category: found.category || 'Men'
                     });
+                    // If image is existing URL, we default to URL mode
+                    // If it was a firebase URL, user might still want to upload new one
                 } else {
                     alert('Prompt not found');
                     router.push('/dashboard');
@@ -49,16 +58,49 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
         fetchPrompt();
     }, [id, router]);
 
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setSelectedFile(file);
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreviewUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const uploadImageToFirebase = async (file: File): Promise<string> => {
+        const timestamp = Date.now();
+        const fileName = `prompts/${timestamp}_${file.name}`;
+        const storageRef = ref(storage, fileName);
+
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+        return downloadURL;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
 
         try {
+            let finalImageUrl = formData.imageUrl;
+
+            // If upload mode and file selected, upload to Firebase
+            if (uploadMode === 'upload' && selectedFile) {
+                setUploading(true);
+                finalImageUrl = await uploadImageToFirebase(selectedFile);
+                setUploading(false);
+            }
+
             await fetch(`/api/prompts/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
+                    imageUrl: finalImageUrl,
                     keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
                     category: formData.category
                 })
@@ -66,6 +108,7 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
             router.push('/dashboard');
         } catch (error) {
             alert('Failed to update prompt');
+            setUploading(false);
         } finally {
             setSaving(false);
         }
@@ -73,13 +116,19 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
 
     const handleDelete = async () => {
         if (!confirm('Are you sure you want to delete this prompt?')) return;
-        await fetch(`/api/prompts/${id}`, { method: 'DELETE' });
-        router.push('/dashboard');
+        try {
+            await fetch(`/api/prompts/${id}`, { method: 'DELETE' });
+            router.push('/dashboard');
+        } catch (e) {
+            alert('Failed to delete');
+        }
     }
 
     const styles = ['Cinematic', 'Realistic', 'Funny', 'Artistic', 'Anime', '3D Render', 'Minimalist'];
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Loading prompt details...</div>;
+    if (loading) return <div className="p-8 text-center text-white">Loading prompt details...</div>;
+
+    const displayImageUrl = uploadMode === 'upload' && previewUrl ? previewUrl : formData.imageUrl;
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -95,7 +144,7 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <button
                     onClick={handleDelete}
-                    className="text-red-400 hover:text-red-300 flex items-center gap-2 px-4 py-2 hover:bg-red-500/10 rounded-lg transition-colors"
+                    className="group bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors rounded-xl px-4 py-2 flex items-center gap-2"
                 >
                     <Trash2 className="w-4 h-4" />
                     Delete
@@ -117,15 +166,73 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                             />
                         </div>
 
+                        {/* Image Upload/URL Toggle */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Image URL</label>
-                            <input
-                                required
-                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
-                                placeholder="https://..."
-                                value={formData.imageUrl}
-                                onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
-                            />
+                            <label className="block text-sm font-medium text-gray-400 mb-2">Image</label>
+                            <div className="flex gap-2 mb-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setUploadMode('url')}
+                                    className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${uploadMode === 'url'
+                                            ? 'bg-purple-500 text-white'
+                                            : 'bg-black/40 text-gray-400 border border-white/10'
+                                        }`}
+                                >
+                                    <LinkIcon className="w-4 h-4" />
+                                    URL
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setUploadMode('upload')}
+                                    className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${uploadMode === 'upload'
+                                            ? 'bg-purple-500 text-white'
+                                            : 'bg-black/40 text-gray-400 border border-white/10'
+                                        }`}
+                                >
+                                    <Upload className="w-4 h-4" />
+                                    Upload
+                                </button>
+                            </div>
+
+                            {uploadMode === 'url' ? (
+                                <input
+                                    required={uploadMode === 'url'}
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
+                                    placeholder="https://..."
+                                    value={formData.imageUrl}
+                                    onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
+                                />
+                            ) : (
+                                <div className="relative">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleFileSelect}
+                                        className="hidden"
+                                        id="file-upload"
+                                        required={uploadMode === 'upload' && !formData.imageUrl} // Required if no existing image
+                                    />
+                                    <label
+                                        htmlFor="file-upload"
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-gray-400 cursor-pointer hover:border-purple-500 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <Upload className="w-5 h-5" />
+                                        {selectedFile ? selectedFile.name : 'Choose new image file'}
+                                    </label>
+                                    {selectedFile && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedFile(null);
+                                                setPreviewUrl('');
+                                            }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-red-500/20 rounded-lg hover:bg-red-500/30"
+                                        >
+                                            <X className="w-4 h-4 text-red-400" />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div>
@@ -180,7 +287,12 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                         disabled={saving}
                         className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
                     >
-                        {saving ? 'Saving...' : (
+                        {saving ? (
+                            <>
+                                <ActivityIndicator size="small" color="#000" />
+                                {uploading ? 'Uploading...' : 'Saving...'}
+                            </>
+                        ) : (
                             <>
                                 <Save className="w-5 h-5" />
                                 Update Prompt
@@ -193,10 +305,10 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                 <div className="space-y-4">
                     <p className="text-sm font-medium text-gray-400">Preview</p>
                     <div className="glass-card rounded-2xl overflow-hidden aspect-[4/5] relative bg-black/40 flex items-center justify-center">
-                        {formData.imageUrl ? (
+                        {displayImageUrl ? (
                             <>
                                 <img
-                                    src={formData.imageUrl}
+                                    src={displayImageUrl}
                                     className="w-full h-full object-cover"
                                     alt="Preview"
                                     onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/400x500?text=Invalid+Image')}
@@ -220,4 +332,14 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
             </div>
         </div>
     );
+}
+
+// Activity Indicator for button (inline component to keep file self-contained)
+function ActivityIndicator({ size, color }: { size: string, color: string }) {
+    return (
+        <svg className={`animate-spin ${size === 'small' ? 'h-4 w-4' : 'h-6 w-6'} text-${color}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+    )
 }

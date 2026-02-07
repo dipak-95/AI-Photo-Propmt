@@ -11,11 +11,23 @@ import * as Clipboard from 'expo-clipboard';
 import { Zap, Heart, Settings, Shield, HelpCircle, Info, ChevronLeft, Copy, Share2, User, Sparkles, TrendingUp } from 'lucide-react-native';
 import { Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BannerAd, BannerAdSize, InterstitialAd, RewardedAd, AdEventType, RewardedAdEventType, AppOpenAd } from 'react-native-google-mobile-ads';
 
 const { width } = Dimensions.get('window');
 
 // API URL
 const API_URL = 'https://sdkv.online/api/prompts';
+
+// AdMob IDs
+const BANNER_AD_ID = 'ca-app-pub-3940256099942544/6300978111'; // Test ID
+const INTERSTITIAL_AD_ID = 'ca-app-pub-3940256099942544/1033173712'; // Test ID
+const REWARDED_AD_ID = 'ca-app-pub-3940256099942544/5224354917'; // Test ID
+const APP_OPEN_AD_ID = 'ca-app-pub-3940256099942544/9257395921'; // Test ID
+
+// Initialize Ads
+const interstitialAd = InterstitialAd.createForAdRequest(INTERSTITIAL_AD_ID);
+const rewardedAd = RewardedAd.createForAdRequest(REWARDED_AD_ID);
+const appOpenAd = AppOpenAd.createForAdRequest(APP_OPEN_AD_ID);
 
 // --- Context ---
 const FavoritesContext = React.createContext({
@@ -213,7 +225,12 @@ function NewArrivalScreen({ navigation }) {
             </View>
           )}
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 20 }} />
+
+          {/* Banner Ad - Bottom - Medium Rectangle */}
+          <View style={{ backgroundColor: '#0a0a0a', alignItems: 'center', paddingBottom: 20 }}>
+            <BannerAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} />
+          </View>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -301,10 +318,18 @@ function FeedScreen({ category, navigation }) {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={categoryColor} colors={[categoryColor]} />}
         >
           <View style={styles.gridContainer}>
-            {displayedPrompts.map((item) => (
-              <View key={item.id} style={styles.gridCard}>
-                <GradientCard item={item} navigation={navigation} />
-              </View>
+            {displayedPrompts.map((item, index) => (
+              <React.Fragment key={item.id}>
+                <View style={styles.gridCard}>
+                  <GradientCard item={item} navigation={navigation} />
+                </View>
+                {/* Insert Ad after every 6th item */}
+                {(index + 1) % 6 === 0 && (
+                  <View style={{ width: '100%', alignItems: 'center', marginVertical: 20 }}>
+                    <BannerAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} />
+                  </View>
+                )}
+              </React.Fragment>
             ))}
           </View>
 
@@ -336,14 +361,91 @@ function DetailsScreen({ route }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [ratio, setRatio] = useState(1);
   const [unlocked, setUnlocked] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const progressInterval = useRef(null);
 
+  // Ad Event Listeners
   useEffect(() => {
     Image.getSize(item.imageUrl, (w, h) => setRatio(w / h), () => { });
     Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+
+    const unsubscribeLoaded = rewardedAd.addAdEventListener(RewardedAdEventType.LOADED, () => {
+      // Ad Loaded
+    });
+
+    const unsubscribeEarned = rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
+      setUnlocked(true);
+      setLoading(false);
+    });
+
+    const unsubscribeClosed = rewardedAd.addAdEventListener(AdEventType.CLOSED, () => {
+      setLoading(false);
+      // Load next ad when current one closes
+      rewardedAd.load();
+    });
+
+    // Load ad on mount if not loaded
+    rewardedAd.load();
+
+    return () => {
+      unsubscribeLoaded();
+      unsubscribeEarned();
+      unsubscribeClosed();
+      if (progressInterval.current) clearInterval(progressInterval.current);
+    };
   }, []);
 
+  const showAd = () => {
+    try {
+      if (rewardedAd.loaded) {
+        rewardedAd.show();
+      } else {
+        // Fallback: Unlock if ad fails to load
+        setUnlocked(true);
+        Alert.alert('✨ Unlocked!', 'Prompt unlocked successfully!');
+      }
+    } catch (error) {
+      // Fallback on crash
+      setUnlocked(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const handleUnlock = () => {
-    setUnlocked(true);
+    Alert.alert(
+      '🎁 Unlock Prompt',
+      'Watch a short ad to unlock this prompt for free!',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, Unlock',
+          onPress: () => {
+            setLoading(true);
+            setProgress(0);
+
+            // Start Loading Ad explicitly if not ready
+            if (!rewardedAd.loaded) {
+              rewardedAd.load();
+            }
+
+            // Progress bar for 5 seconds (Reduced from 7 for better UX)
+            let progressValue = 0;
+            progressInterval.current = setInterval(() => {
+              progressValue += 100 / 50; // 5 seconds = 50 steps
+              setProgress(progressValue);
+
+              if (progressValue >= 100) {
+                if (progressInterval.current) clearInterval(progressInterval.current);
+                showAd();
+              }
+            }, 100);
+          }
+        }
+      ]
+    );
   };
 
   const toggleFavorite = () => {
@@ -369,6 +471,11 @@ function DetailsScreen({ route }) {
             <Heart fill={isFav ? "#FF6B9D" : "transparent"} color={isFav ? "#FF6B9D" : "white"} size={24} />
           </View>
         </TouchableOpacity>
+      </View>
+
+      {/* Banner Ad - Top */}
+      <View style={{ backgroundColor: '#0a0a0a', alignItems: 'center' }}>
+        <BannerAd unitId={BANNER_AD_ID} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -412,12 +519,30 @@ function DetailsScreen({ route }) {
               </View>
             </View>
           ) : (
-            <TouchableOpacity style={[styles.unlockBtn, { backgroundColor: '#FF6B9D' }]} onPress={handleUnlock}>
-              <View style={styles.unlockBtnGradient}>
-                <Zap color="white" size={20} />
-                <Text style={styles.unlockBtnText}>Unlock Prompt</Text>
-              </View>
-            </TouchableOpacity>
+            <View>
+              <TouchableOpacity
+                style={[styles.unlockBtn, { backgroundColor: '#FF6B9D', opacity: loading ? 0.7 : 1 }]}
+                onPress={handleUnlock}
+                disabled={loading}
+              >
+                <View style={styles.unlockBtnGradient}>
+                  <Zap color="white" size={20} />
+                  <Text style={styles.unlockBtnText}>{loading ? 'Loading...' : 'Unlock Prompt'}</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Progress Bar */}
+              {loading && (
+                <View style={styles.progressContainer}>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { width: `${progress}%` }]} />
+                  </View>
+                  <Text style={styles.progressText}>
+                    {Math.round(progress)}% - {progress < 100 ? 'Loading ad...' : 'Ready!'}
+                  </Text>
+                </View>
+              )}
+            </View>
           )}
         </View>
       </ScrollView>
@@ -469,6 +594,11 @@ function FavoritesScreen({ navigation }) {
             ))}
           </View>
           <View style={{ height: 40 }} />
+
+          {/* Ad at Bottom of Favorites */}
+          <View style={{ alignItems: 'center', paddingBottom: 20 }}>
+            <BannerAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} />
+          </View>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -653,7 +783,10 @@ function RootNavigator() {
 
 export default function App() {
   const [favorites, setFavorites] = useState([]);
+  const [appOpenAdLoaded, setAppOpenAdLoaded] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
+  // Load favorites
   useEffect(() => {
     (async () => {
       try {
@@ -666,6 +799,53 @@ export default function App() {
   useEffect(() => {
     AsyncStorage.setItem('userFavorites', JSON.stringify(favorites)).catch(() => { });
   }, [favorites]);
+
+  // Load and show App Open Ad - ONCE ONLY
+  useEffect(() => {
+    let hasShown = false;
+
+    const unsubscribeLoaded = appOpenAd.addAdEventListener(AdEventType.LOADED, () => {
+      if (!hasShown) {
+        hasShown = true;
+        setAppOpenAdLoaded(true);
+        appOpenAd.show();
+      }
+    });
+
+    const unsubscribeClosed = appOpenAd.addAdEventListener(AdEventType.CLOSED, () => {
+      setAppOpenAdLoaded(false);
+      // DO NOT RELOAD HERE
+    });
+
+    appOpenAd.load();
+
+    // Splash Screen Timer (7 seconds)
+    const splashTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 7000);
+
+    return () => {
+      unsubscribeLoaded();
+      unsubscribeClosed();
+      clearTimeout(splashTimer);
+    };
+  }, []);
+
+  if (showSplash) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' }}>
+        <StatusBar style="light" />
+        <View style={{ alignItems: 'center', gap: 20 }}>
+          <Image
+            source={require('./assets/splash-icon.png')}
+            style={{ width: 150, height: 150, resizeMode: 'contain' }}
+          />
+          <ActivityIndicator size="large" color="#FF6B9D" />
+          <Text style={{ color: '#666', marginTop: 10, fontSize: 14 }}>Loading Experience...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -769,6 +949,12 @@ const styles = StyleSheet.create({
   unlockBtn: { marginTop: 20, borderRadius: 16, overflow: 'hidden' },
   unlockBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18 },
   unlockBtnText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+
+  // Progress Bar
+  progressContainer: { marginTop: 16, alignItems: 'center' },
+  progressBar: { width: '100%', height: 6, backgroundColor: '#333', borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: '#00D9FF', borderRadius: 3 },
+  progressText: { color: '#888', fontSize: 12, marginTop: 8, fontWeight: '500' },
 
   // Favorites - New Grid Layout
   favGridContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingTop: 20 },
