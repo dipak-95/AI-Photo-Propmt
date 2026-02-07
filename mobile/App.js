@@ -672,7 +672,7 @@ function VersionScreen() {
       <ScrollView contentContainerStyle={{ padding: 20, alignItems: 'center' }}>
         <Sparkles color="#FF6B9D" size={60} />
         <Text style={styles.appName}>Pearl AI</Text>
-        <Text style={styles.appVersion}>Version 2.0</Text>
+        <Text style={styles.appVersion}>Version 2.1</Text>
         <Text style={styles.appDescription}>
           Curated AI prompts for creators, designers, and enthusiasts. Get high-quality results from Midjourney, Stable Diffusion & more.
         </Text>
@@ -837,7 +837,7 @@ export default function App() {
         <StatusBar style="light" />
         <View style={{ alignItems: 'center', gap: 20 }}>
           <Image
-            source={require('./assets/splash-icon.png')}
+            source={require('./assets/splash.png')}
             style={{ width: 150, height: 150, resizeMode: 'contain' }}
           />
           <ActivityIndicator size="large" color="#FF6B9D" />

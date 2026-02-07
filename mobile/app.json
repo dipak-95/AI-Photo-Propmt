@@ -2,13 +2,13 @@
   "expo": {
     "name": "AI Photo Prompt - Pearl",
     "slug": "pearl-ai",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -23,7 +23,7 @@
       "edgeToEdgeEnabled": true,
       "package": "com.dipak.pearlai",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 2
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/favicon.png"
