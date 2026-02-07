@@ -836,10 +836,8 @@ export default function App() {
       <View style={{ flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' }}>
         <StatusBar style="light" />
         <View style={{ alignItems: 'center', gap: 20 }}>
-          <Image
-            source={require('./assets/splash.png')}
-            style={{ width: 150, height: 150, resizeMode: 'contain' }}
-          />
+          {/* Splash Image removed temporarily due to build error with file format */}
+          <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FF6B9D' }}>Pearl AI</Text>
           <ActivityIndicator size="large" color="#FF6B9D" />
           <Text style={{ color: '#666', marginTop: 10, fontSize: 14 }}>Loading Experience...</Text>
         </View>
