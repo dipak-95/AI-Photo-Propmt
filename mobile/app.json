@@ -2,7 +2,7 @@
   "expo": {
     "name": "AI Photo Prompt - Pearl",
     "slug": "pearl-ai",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -21,7 +21,7 @@
       "edgeToEdgeEnabled": true,
       "package": "com.dipak.pearlai",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 3
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -32,8 +32,8 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+          "androidAppId": "ca-app-pub-9701184278274967~4794455548",
+          "iosAppId": "ca-app-pub-9701184278274967~4794455548"
         }
       ]
     ],

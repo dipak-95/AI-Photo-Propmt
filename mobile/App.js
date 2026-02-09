@@ -19,7 +19,7 @@ const { width } = Dimensions.get('window');
 const API_URL = 'https://sdkv.online/api/prompts';
 
 // AdMob IDs
-const BANNER_AD_ID = 'ca-app-pub-3940256099942544/6300978111'; // Test ID
+const BANNER_AD_ID = 'ca-app-pub-9701184278274967/2110282579'; // Production ID
 const INTERSTITIAL_AD_ID = 'ca-app-pub-3940256099942544/1033173712'; // Test ID
 const REWARDED_AD_ID = 'ca-app-pub-3940256099942544/5224354917'; // Test ID
 const APP_OPEN_AD_ID = 'ca-app-pub-3940256099942544/9257395921'; // Test ID
@@ -672,7 +672,7 @@ function VersionScreen() {
       <ScrollView contentContainerStyle={{ padding: 20, alignItems: 'center' }}>
         <Sparkles color="#FF6B9D" size={60} />
         <Text style={styles.appName}>Pearl AI</Text>
-        <Text style={styles.appVersion}>Version 2.1</Text>
+        <Text style={styles.appVersion}>Version 2.2</Text>
         <Text style={styles.appDescription}>
           Curated AI prompts for creators, designers, and enthusiasts. Get high-quality results from Midjourney, Stable Diffusion & more.
         </Text>
