@@ -22,7 +22,7 @@ const API_URL = 'https://sdkv.online/api/prompts';
 const BANNER_AD_ID = 'ca-app-pub-9701184278274967/2110282579'; // Production ID
 const INTERSTITIAL_AD_ID = 'ca-app-pub-3940256099942544/1033173712'; // Test ID
 const REWARDED_AD_ID = 'ca-app-pub-3940256099942544/5224354917'; // Test ID
-const APP_OPEN_AD_ID = 'ca-app-pub-3940256099942544/9257395921'; // Test ID
+const APP_OPEN_AD_ID = 'ca-app-pub-9701184278274967/6376665373'; // Production ID
 
 // Initialize Ads
 const interstitialAd = InterstitialAd.createForAdRequest(INTERSTITIAL_AD_ID);
