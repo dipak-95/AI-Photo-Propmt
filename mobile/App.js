@@ -38,6 +38,25 @@ const FavoritesContext = React.createContext({
 
 // --- Components ---
 
+// Smart Ad Component to handle auto-sizing and avoid empty space
+function SmartAd({ unitId, size, containerStyle }) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  if (error) return null;
+
+  return (
+    <View style={[{ display: loaded ? 'flex' : 'none' }, containerStyle]}>
+      <BannerAd
+        unitId={unitId}
+        size={size}
+        onAdLoaded={() => setLoaded(true)}
+        onAdFailedToLoad={() => setError(true)}
+      />
+    </View>
+  );
+}
+
 // Gradient Card Component
 const GradientCard = ({ item, navigation }) => {
   const [imageLoading, setImageLoading] = useState(true);
@@ -229,9 +248,7 @@ function NewArrivalScreen({ navigation }) {
           <View style={{ height: 20 }} />
 
           {/* Banner Ad - Bottom - Medium Rectangle */}
-          <View style={{ backgroundColor: '#0a0a0a', alignItems: 'center', paddingBottom: 20 }}>
-            <BannerAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} />
-          </View>
+          <SmartAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} containerStyle={{ alignItems: 'center', paddingBottom: 20 }} />
         </ScrollView>
       )}
     </SafeAreaView>
@@ -326,9 +343,7 @@ function FeedScreen({ category, navigation }) {
                 </View>
                 {/* Insert Ad after every 6th item */}
                 {(index + 1) % 6 === 0 && (
-                  <View style={{ width: '100%', alignItems: 'center', marginVertical: 20 }}>
-                    <BannerAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} />
-                  </View>
+                  <SmartAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} containerStyle={{ width: '100%', alignItems: 'center', marginVertical: 20 }} />
                 )}
               </React.Fragment>
             ))}
@@ -475,9 +490,7 @@ function DetailsScreen({ route }) {
       </View>
 
       {/* Banner Ad - Top (Specific for Details) */}
-      <View style={{ backgroundColor: '#0a0a0a', alignItems: 'center' }}>
-        <BannerAd unitId={DETAILS_BANNER_ID} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
-      </View>
+      <SmartAd unitId={DETAILS_BANNER_ID} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} containerStyle={{ backgroundColor: '#0a0a0a', alignItems: 'center', paddingVertical: 5 }} />
 
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -598,9 +611,7 @@ function FavoritesScreen({ navigation }) {
           <View style={{ height: 40 }} />
 
           {/* Ad at Bottom of Favorites */}
-          <View style={{ alignItems: 'center', paddingBottom: 20 }}>
-            <BannerAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} />
-          </View>
+          <SmartAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} containerStyle={{ alignItems: 'center', paddingBottom: 20 }} />
         </ScrollView>
       )}
     </SafeAreaView>
