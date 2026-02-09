@@ -20,6 +20,7 @@ const API_URL = 'https://sdkv.online/api/prompts';
 
 // AdMob IDs
 const BANNER_AD_ID = 'ca-app-pub-9701184278274967/2110282579'; // Production ID
+const DETAILS_BANNER_ID = 'ca-app-pub-9701184278274967/6594622379'; // Details Top ID
 const INTERSTITIAL_AD_ID = 'ca-app-pub-3940256099942544/1033173712'; // Test ID
 const REWARDED_AD_ID = 'ca-app-pub-3940256099942544/5224354917'; // Test ID
 const APP_OPEN_AD_ID = 'ca-app-pub-9701184278274967/6376665373'; // Production ID
@@ -471,6 +472,11 @@ function DetailsScreen({ route }) {
             <Heart fill={isFav ? "#FF6B9D" : "transparent"} color={isFav ? "#FF6B9D" : "white"} size={24} />
           </View>
         </TouchableOpacity>
+      </View>
+
+      {/* Banner Ad - Top (Specific for Details) */}
+      <View style={{ backgroundColor: '#0a0a0a', alignItems: 'center' }}>
+        <BannerAd unitId={DETAILS_BANNER_ID} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
       </View>
 
 
