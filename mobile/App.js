@@ -2,7 +2,7 @@ import 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, TextInput, ScrollView, Alert, Share, RefreshControl, ActivityIndicator, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, TextInput, ScrollView, Alert, Share, RefreshControl, ActivityIndicator, Dimensions, Linking } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -24,6 +24,10 @@ const DETAILS_BANNER_ID = 'ca-app-pub-9701184278274967/6594622379'; // Details T
 const INTERSTITIAL_AD_ID = 'ca-app-pub-3940256099942544/1033173712'; // Test ID
 const REWARDED_AD_ID = 'ca-app-pub-9701184278274967/4323682251'; // Production ID
 const APP_OPEN_AD_ID = 'ca-app-pub-9701184278274967/6376665373'; // Production ID
+
+// APP VERSION (Current)
+const CURRENT_VERSION = '2.2.0';
+const CONFIG_URL = 'https://sdkv.online/api/config';
 
 // Initialize Ads
 const interstitialAd = InterstitialAd.createForAdRequest(INTERSTITIAL_AD_ID);
@@ -796,8 +800,35 @@ function RootNavigator() {
 
 export default function App() {
   const [favorites, setFavorites] = useState([]);
-  const [appOpenAdLoaded, setAppOpenAdLoaded] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  // Check for App Updates
+  useEffect(() => {
+    const checkUpdate = async () => {
+      try {
+        const response = await fetch(CONFIG_URL);
+        const config = await response.json();
+
+        if (config.latestVersion && config.latestVersion !== CURRENT_VERSION) {
+          Alert.alert(
+            '🚀 Update Available!',
+            config.message || 'A new version of Pearl AI is available with fresh prompts and better performance.',
+            [
+              { text: 'Later', style: 'cancel' },
+              {
+                text: 'Update Now',
+                onPress: () => Linking.openURL(config.updateUrl),
+                style: 'default'
+              }
+            ]
+          );
+        }
+      } catch (error) {
+        console.log('Update check failed:', error);
+      }
+    };
+
+    // Tiny delay to let splash/ads settle
+    setTimeout(checkUpdate, 3000);
+  }, []);
 
   // Load favorites
   useEffect(() => {
