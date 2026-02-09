@@ -473,10 +473,6 @@ function DetailsScreen({ route }) {
         </TouchableOpacity>
       </View>
 
-      {/* Banner Ad - Top */}
-      <View style={{ backgroundColor: '#0a0a0a', alignItems: 'center' }}>
-        <BannerAd unitId={BANNER_AD_ID} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
-      </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.Image
