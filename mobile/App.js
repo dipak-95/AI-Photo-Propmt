@@ -787,6 +787,8 @@ function RootNavigator() {
 
 export default function App() {
   const [favorites, setFavorites] = useState([]);
+  const splashProgress = useRef(new Animated.Value(0)).current;
+
   // Check for App Updates
   useEffect(() => {
     const checkUpdate = async () => {
@@ -858,6 +860,12 @@ export default function App() {
     checkUpdate();
 
     // Splash Screen Timer (4 seconds)
+    Animated.timing(splashProgress, {
+      toValue: 1,
+      duration: 4000,
+      useNativeDriver: false,
+    }).start();
+
     const splashTimer = setTimeout(() => {
       setShowSplash(false);
     }, 4000);
@@ -876,6 +884,18 @@ export default function App() {
         <View style={{ alignItems: 'center', gap: 20 }}>
           {/* Splash Image removed temporarily due to build error with file format */}
           <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FF6B9D' }}>Pearl AI</Text>
+          <View style={{ width: 200, height: 4, backgroundColor: '#222', borderRadius: 2, overflow: 'hidden', marginTop: 10 }}>
+            <Animated.View
+              style={{
+                height: '100%',
+                backgroundColor: '#FF6B9D',
+                width: splashProgress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%']
+                })
+              }}
+            />
+          </View>
         </View>
       </View>
     );
