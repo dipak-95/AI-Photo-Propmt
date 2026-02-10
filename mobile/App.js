@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, TextInput, ScrollView, Alert, Share, RefreshControl, ActivityIndicator, Dimensions, Linking } from 'react-native';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { NavigationContainer, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -338,6 +338,12 @@ function FeedScreen({ category, navigation }) {
   const introAnim = useRef(new Animated.Value(0)).current;
 
   const categoryColor = category === 'Men' ? '#00D9FF' : '#FF6B9D';
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setSearch('');
+    }, [])
+  );
 
   useEffect(() => {
     fetchPrompts();
