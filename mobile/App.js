@@ -280,7 +280,6 @@ function FeedScreen({ category, navigation }) {
   }, [search, allPrompts, visibleCount]);
 
   const fetchPrompts = async () => {
-    setLoading(true);
     try {
       const res = await fetch(API_URL);
       const data = await res.json();
@@ -292,7 +291,7 @@ function FeedScreen({ category, navigation }) {
     } catch (e) {
       console.log('Error fetching:', e);
     } finally {
-      setLoading(false);
+      // Removed setLoading(false)
     }
   };
 
@@ -329,45 +328,38 @@ function FeedScreen({ category, navigation }) {
         </View>
       </View>
 
-      {loading && displayedPrompts.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={categoryColor} />
-          <Text style={styles.loadingText}>Loading gallery...</Text>
-        </View>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={categoryColor} colors={[categoryColor]} />}
-        >
-          <View style={styles.gridContainer}>
-            {displayedPrompts.map((item, index) => (
-              <React.Fragment key={item.id}>
-                <View style={styles.gridCard}>
-                  <GradientCard item={item} navigation={navigation} />
-                </View>
-                {/* Insert Ad after every 6th item */}
-                {(index + 1) % 6 === 0 && (
-                  <SmartAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} containerStyle={{ width: '100%', alignItems: 'center', marginVertical: 20 }} />
-                )}
-              </React.Fragment>
-            ))}
-          </View>
-
-          {displayedPrompts.length < allPrompts.filter(p => p.title.toLowerCase().includes(search.toLowerCase())).length && (
-            <TouchableOpacity
-              onPress={() => setVisibleCount(c => c + 16)}
-              style={[styles.loadMoreBtn, { borderColor: categoryColor, backgroundColor: '#1a1a1a' }]}
-            >
-              <View
-                style={styles.loadMoreGradient}
-              >
-                <Text style={[styles.loadMoreText, { color: categoryColor }]}>Load More ✨</Text>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={categoryColor} colors={[categoryColor]} />}
+      >
+        <View style={styles.gridContainer}>
+          {displayedPrompts.map((item, index) => (
+            <React.Fragment key={item.id}>
+              <View style={styles.gridCard}>
+                <GradientCard item={item} navigation={navigation} />
               </View>
-            </TouchableOpacity>
-          )}
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      )}
+              {/* Insert Ad after every 6th item */}
+              {(index + 1) % 6 === 0 && (
+                <SmartAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} containerStyle={{ width: '100%', alignItems: 'center', marginVertical: 20 }} />
+              )}
+            </React.Fragment>
+          ))}
+        </View>
+
+        {displayedPrompts.length < allPrompts.filter(p => p.title.toLowerCase().includes(search.toLowerCase())).length && (
+          <TouchableOpacity
+            onPress={() => setVisibleCount(c => c + 16)}
+            style={[styles.loadMoreBtn, { borderColor: categoryColor, backgroundColor: '#1a1a1a' }]}
+          >
+            <View
+              style={styles.loadMoreGradient}
+            >
+              <Text style={[styles.loadMoreText, { color: categoryColor }]}>Load More ✨</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -867,10 +859,13 @@ export default function App() {
 
     appOpenAd.load();
 
-    // Splash Screen Timer (7 seconds)
+    // Start Checking Update in background immediately
+    checkUpdate();
+
+    // Splash Screen Timer (4 seconds)
     const splashTimer = setTimeout(() => {
       setShowSplash(false);
-    }, 7000);
+    }, 4000);
 
     return () => {
       unsubscribeLoaded();
