@@ -65,6 +65,18 @@ function SmartAd({ unitId, size, containerStyle }) {
 const GradientCard = ({ item, navigation }) => {
   const [imageLoading, setImageLoading] = useState(true);
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    if (imageLoading) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 0.3, duration: 1000, useNativeDriver: true }),
+        ])
+      ).start();
+    }
+  }, [imageLoading]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -98,9 +110,9 @@ const GradientCard = ({ item, navigation }) => {
             onLoadEnd={() => setImageLoading(false)}
           />
           {imageLoading && (
-            <View style={[StyleSheet.absoluteFill, styles.imagePlaceholder]}>
-              <ActivityIndicator size="small" color="#FF6B9D" />
-            </View>
+            <Animated.View style={[StyleSheet.absoluteFill, styles.imagePlaceholder, { opacity: pulseAnim }]}>
+              <Zap size={24} color="#333" />
+            </Animated.View>
           )}
         </View>
         <View style={styles.cardContent}>
@@ -138,6 +150,16 @@ function NewArrivalScreen({ navigation }) {
   const [womenPrompts, setWomenPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 2000, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 2000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
 
   useEffect(() => {
     fetchPrompts();
@@ -236,11 +258,19 @@ function NewArrivalScreen({ navigation }) {
           </View>
         )}
 
-        {menPrompts.length === 0 && womenPrompts.length === 0 && (
+        {menPrompts.length === 0 && womenPrompts.length === 0 && !loading && (
           <View style={styles.emptyState}>
-            <Zap color="#666" size={60} />
-            <Text style={styles.emptyText}>No new arrivals in last 24h</Text>
-            <Text style={styles.emptySubtext}>Check back soon for fresh content!</Text>
+            <Animated.View style={{
+              transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) }],
+              opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] })
+            }}>
+              <Zap color="#FF6B9D" size={80} />
+            </Animated.View>
+            <Text style={styles.emptyText}>Taking a Coffee Break! ☕</Text>
+            <Text style={styles.emptySubtext}>Our AI is busy generating fresh new looks. Check back in a bit!</Text>
+            <TouchableOpacity onPress={onRefresh} style={{ marginTop: 24, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#FF6B9D20', borderRadius: 20 }}>
+              <Text style={{ color: '#FF6B9D', fontWeight: 'bold' }}>Refresh to Check ✨</Text>
+            </TouchableOpacity>
           </View>
         )}
 
