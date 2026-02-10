@@ -26,7 +26,7 @@ const REWARDED_AD_ID = 'ca-app-pub-9701184278274967/4323682251'; // Production I
 const APP_OPEN_AD_ID = 'ca-app-pub-9701184278274967/6376665373'; // Production ID
 
 // APP VERSION (Current)
-const CURRENT_VERSION = '3.0.0';
+const CURRENT_VERSION = '3.1.0';
 const CONFIG_URL = 'https://sdkv.online/api/config';
 
 // Initialize Ads
@@ -779,7 +779,7 @@ function VersionScreen() {
       <ScrollView contentContainerStyle={{ padding: 20, alignItems: 'center' }}>
         <Sparkles color="#FF6B9D" size={60} />
         <Text style={styles.appName}>Pearl AI</Text>
-        <Text style={styles.appVersion}>Version 3.0</Text>
+        <Text style={styles.appVersion}>Version 3.1</Text>
         <Text style={styles.appDescription}>
           Curated AI prompts for creators, designers, and enthusiasts. Get high-quality results from Midjourney, Stable Diffusion & more.
         </Text>
