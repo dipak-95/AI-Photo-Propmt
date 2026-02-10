@@ -418,7 +418,7 @@ function DetailsScreen({ route }) {
 
   const showAd = () => {
     try {
-      if (rewardedAd.loaded) {
+      if (rewardedAd && rewardedAd.loaded) {
         rewardedAd.show();
       } else {
         // Fallback: Unlock if ad fails to load
@@ -426,7 +426,7 @@ function DetailsScreen({ route }) {
         Alert.alert('✨ Unlocked!', 'Prompt unlocked successfully!');
       }
     } catch (error) {
-      // Fallback on crash
+      console.log('Ad Show Error:', error);
       setUnlocked(true);
     } finally {
       setLoading(false);
@@ -849,10 +849,14 @@ export default function App() {
     let hasShown = false;
 
     const unsubscribeLoaded = appOpenAd.addAdEventListener(AdEventType.LOADED, () => {
-      if (!hasShown) {
-        hasShown = true;
-        setAppOpenAdLoaded(true);
-        appOpenAd.show();
+      try {
+        if (!hasShown) {
+          hasShown = true;
+          setAppOpenAdLoaded(true);
+          appOpenAd.show();
+        }
+      } catch (e) {
+        console.log('AppOpenAd Show Error:', e);
       }
     });
 
