@@ -61,6 +61,32 @@ function SmartAd({ unitId, size, containerStyle }) {
   );
 }
 
+// Liquid Fill Component
+const LiquidFillIcon = ({ Icon, color, progress }) => {
+  return (
+    <View style={{ width: 150, height: 150, alignItems: 'center', justifyContent: 'center' }}>
+      {/* Background Icon (Low Opacity) */}
+      <Icon color={color} size={150} style={{ opacity: 0.1, position: 'absolute' }} />
+
+      {/* Foreground Icon (Animated Fill) */}
+      <Animated.View style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        width: 150,
+        height: progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 150]
+        }),
+        overflow: 'hidden',
+      }}>
+        <Icon color={color} size={150} style={{ position: 'absolute', bottom: 0 }} />
+      </Animated.View>
+    </View>
+  );
+};
+
 // Gradient Card Component
 const GradientCard = ({ item, navigation }) => {
   const [imageLoading, setImageLoading] = useState(true);
@@ -150,19 +176,28 @@ function NewArrivalScreen({ navigation }) {
   const [womenPrompts, setWomenPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
+  const introAnim = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    fetchPrompts();
+
+    // Start Intro Animation
+    Animated.timing(introAnim, {
+      toValue: 1,
+      duration: 3000,
+      useNativeDriver: false,
+    }).start(() => {
+      setShowIntro(false);
+    });
+
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 2000, useNativeDriver: true }),
         Animated.timing(pulse, { toValue: 0, duration: 2000, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
-
-  useEffect(() => {
-    fetchPrompts();
   }, []);
 
   const fetchPrompts = async () => {
@@ -201,6 +236,13 @@ function NewArrivalScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {showIntro && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0a0a', zIndex: 100, justifyContent: 'center', alignItems: 'center' }]}>
+          <LiquidFillIcon Icon={Zap} color="#FF6B9D" progress={introAnim} />
+          <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold', marginTop: 20 }}>Checking New Styles...</Text>
+        </View>
+      )}
+
       {/* Header with Gradient */}
       <View style={styles.headerGradient}>
         <View style={styles.header}>
@@ -342,25 +384,14 @@ function FeedScreen({ category, navigation }) {
     <SafeAreaView style={styles.container} edges={['top']}>
       {showIntro && (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0a0a', zIndex: 100, justifyContent: 'center', alignItems: 'center' }]}>
-          <Animated.View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              backgroundColor: categoryColor + '20',
-              height: introAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0%', '100%']
-              })
-            }}
+          <LiquidFillIcon
+            Icon={category === 'Men' ? User : User}
+            color={categoryColor}
+            progress={introAnim}
           />
-          <View style={{ alignItems: 'center', gap: 15 }}>
-            <View style={[styles.iconBadge, { backgroundColor: categoryColor + '30', width: 80, height: 80, borderRadius: 25 }]}>
-              {category === 'Men' ? <User color={categoryColor} size={40} /> : <Sparkles color={categoryColor} size={40} />}
-            </View>
+          <View style={{ alignItems: 'center', marginTop: 30 }}>
             <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>{category}'s Styles</Text>
-            <Text style={{ color: '#666', fontSize: 14 }}>Preparing masterpieces...</Text>
+            <Text style={{ color: '#666', fontSize: 14, marginTop: 8 }}>Preparing masterpieces...</Text>
           </View>
         </View>
       )}
