@@ -817,34 +817,36 @@ function RootNavigator() {
 
 export default function App() {
   const [favorites, setFavorites] = useState([]);
+  const [appOpenAdLoaded, setAppOpenAdLoaded] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const splashProgress = useRef(new Animated.Value(0)).current;
+
+  const checkUpdate = async () => {
+    try {
+      const response = await fetch(CONFIG_URL);
+      const config = await response.json();
+
+      if (config.latestVersion && config.latestVersion !== CURRENT_VERSION) {
+        Alert.alert(
+          '🚀 Update Available!',
+          config.message || 'A new version of Pearl AI is available with fresh prompts and better performance.',
+          [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Update Now',
+              onPress: () => Linking.openURL(config.updateUrl),
+              style: 'default'
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.log('Update check failed:', error);
+    }
+  };
 
   // Check for App Updates
   useEffect(() => {
-    const checkUpdate = async () => {
-      try {
-        const response = await fetch(CONFIG_URL);
-        const config = await response.json();
-
-        if (config.latestVersion && config.latestVersion !== CURRENT_VERSION) {
-          Alert.alert(
-            '🚀 Update Available!',
-            config.message || 'A new version of Pearl AI is available with fresh prompts and better performance.',
-            [
-              { text: 'Later', style: 'cancel' },
-              {
-                text: 'Update Now',
-                onPress: () => Linking.openURL(config.updateUrl),
-                style: 'default'
-              }
-            ]
-          );
-        }
-      } catch (error) {
-        console.log('Update check failed:', error);
-      }
-    };
-
     // Tiny delay to let splash/ads settle
     setTimeout(checkUpdate, 3000);
   }, []);
