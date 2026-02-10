@@ -292,11 +292,22 @@ function FeedScreen({ category, navigation }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
+  const introAnim = useRef(new Animated.Value(0)).current;
 
   const categoryColor = category === 'Men' ? '#00D9FF' : '#FF6B9D';
 
   useEffect(() => {
     fetchPrompts();
+
+    // Start Intro Animation
+    Animated.timing(introAnim, {
+      toValue: 1,
+      duration: 3000,
+      useNativeDriver: false,
+    }).start(() => {
+      setShowIntro(false);
+    });
   }, []);
 
   useEffect(() => {
@@ -329,6 +340,31 @@ function FeedScreen({ category, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {showIntro && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0a0a', zIndex: 100, justifyContent: 'center', alignItems: 'center' }]}>
+          <Animated.View
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: categoryColor + '20',
+              height: introAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', '100%']
+              })
+            }}
+          />
+          <View style={{ alignItems: 'center', gap: 15 }}>
+            <View style={[styles.iconBadge, { backgroundColor: categoryColor + '30', width: 80, height: 80, borderRadius: 25 }]}>
+              {category === 'Men' ? <User color={categoryColor} size={40} /> : <Sparkles color={categoryColor} size={40} />}
+            </View>
+            <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>{category}'s Styles</Text>
+            <Text style={{ color: '#666', fontSize: 14 }}>Preparing masterpieces...</Text>
+          </View>
+        </View>
+      )}
+
       {/* Category Header */}
       <View style={styles.headerGradient}>
         <View style={styles.header}>
