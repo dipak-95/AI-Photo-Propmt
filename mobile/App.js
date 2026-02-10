@@ -195,66 +195,61 @@ function NewArrivalScreen({ navigation }) {
         </View>
       </View>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B9D" />
-          <Text style={styles.loadingText}>Loading fresh content...</Text>
-        </View>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF6B9D" colors={['#FF6B9D']} />}
-        >
-          {/* Men Section */}
-          {menPrompts.length > 0 && (
-            <View style={styles.section}>
-              <SectionHeader title="Men's Collection" icon={User} color="#00D9FF" />
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
-              >
-                {menPrompts.map((item) => (
-                  <View key={item.id} style={styles.horizontalCard}>
-                    <GradientCard item={item} navigation={navigation} />
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-          )}
 
-          {/* Women Section */}
-          {womenPrompts.length > 0 && (
-            <View style={styles.section}>
-              <SectionHeader title="Women's Collection" icon={Sparkles} color="#FF6B9D" />
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
-              >
-                {womenPrompts.map((item) => (
-                  <View key={item.id} style={styles.horizontalCard}>
-                    <GradientCard item={item} navigation={navigation} />
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-          )}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF6B9D" colors={['#FF6B9D']} />}
+      >
+        {/* Men Section */}
+        {menPrompts.length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader title="Men's Collection" icon={User} color="#00D9FF" />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
+              {menPrompts.map((item) => (
+                <View key={item.id} style={styles.horizontalCard}>
+                  <GradientCard item={item} navigation={navigation} />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
-          {menPrompts.length === 0 && womenPrompts.length === 0 && (
-            <View style={styles.emptyState}>
-              <Zap color="#666" size={60} />
-              <Text style={styles.emptyText}>No new arrivals in last 24h</Text>
-              <Text style={styles.emptySubtext}>Check back soon for fresh content!</Text>
-            </View>
-          )}
+        {/* Women Section */}
+        {womenPrompts.length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader title="Women's Collection" icon={Sparkles} color="#FF6B9D" />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
+              {womenPrompts.map((item) => (
+                <View key={item.id} style={styles.horizontalCard}>
+                  <GradientCard item={item} navigation={navigation} />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
-          <View style={{ height: 20 }} />
+        {menPrompts.length === 0 && womenPrompts.length === 0 && (
+          <View style={styles.emptyState}>
+            <Zap color="#666" size={60} />
+            <Text style={styles.emptyText}>No new arrivals in last 24h</Text>
+            <Text style={styles.emptySubtext}>Check back soon for fresh content!</Text>
+          </View>
+        )}
 
-          {/* Banner Ad - Bottom - Medium Rectangle */}
-          <SmartAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} containerStyle={{ alignItems: 'center', paddingBottom: 20 }} />
-        </ScrollView>
-      )}
+        <View style={{ height: 20 }} />
+
+        {/* Banner Ad - Bottom - Medium Rectangle */}
+        <SmartAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} containerStyle={{ alignItems: 'center', paddingBottom: 20 }} />
+      </ScrollView>
+
     </SafeAreaView>
   );
 }
@@ -881,8 +876,6 @@ export default function App() {
         <View style={{ alignItems: 'center', gap: 20 }}>
           {/* Splash Image removed temporarily due to build error with file format */}
           <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FF6B9D' }}>Pearl AI</Text>
-          <ActivityIndicator size="large" color="#FF6B9D" />
-          <Text style={{ color: '#666', marginTop: 10, fontSize: 14 }}>Loading Experience...</Text>
         </View>
       </View>
     );
