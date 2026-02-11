@@ -26,7 +26,7 @@ const REWARDED_AD_ID = 'ca-app-pub-9701184278274967/4323682251'; // Production I
 const APP_OPEN_AD_ID = 'ca-app-pub-9701184278274967/6376665373'; // Production ID
 
 // APP VERSION (Current)
-const CURRENT_VERSION = '3.1';
+const CURRENT_VERSION = '3.2.0';
 const CONFIG_URL = 'https://sdkv.online/api/config';
 
 // Initialize Ads
@@ -899,7 +899,12 @@ export default function App() {
       const response = await fetch(CONFIG_URL);
       const config = await response.json();
 
-      if (config.latestVersion && config.latestVersion !== CURRENT_VERSION) {
+      const currentMajor = parseInt(CURRENT_VERSION.split('.')[0]);
+      const latestMajor = parseInt(config.latestVersion.split('.')[0]);
+
+      // Pop-up only if current version is below 3 (as requested)
+      // or if there is a major version jump
+      if (currentMajor < latestMajor || (currentMajor < 3 && latestMajor >= 3)) {
         Alert.alert(
           '🚀 Update Available!',
           config.message || 'A new version of Pearl AI is available with fresh prompts and better performance.',
