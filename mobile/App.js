@@ -26,7 +26,7 @@ const REWARDED_AD_ID = 'ca-app-pub-9701184278274967/4323682251'; // Production I
 const APP_OPEN_AD_ID = 'ca-app-pub-9701184278274967/6376665373'; // Production ID
 
 // APP VERSION (Current)
-const CURRENT_VERSION = '3.1.0';
+const CURRENT_VERSION = '3.1';
 const CONFIG_URL = 'https://sdkv.online/api/config';
 
 // Initialize Ads
@@ -894,25 +894,12 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const splashProgress = useRef(new Animated.Value(0)).current;
 
-  const compareVersions = (v1, v2) => {
-    if (!v1 || !v2) return 0;
-    const parts1 = v1.split('.').map(Number);
-    const parts2 = v2.split('.').map(Number);
-    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-      const p1 = parts1[i] || 0;
-      const p2 = parts2[i] || 0;
-      if (p1 > p2) return 1;
-      if (p1 < p2) return -1;
-    }
-    return 0;
-  };
-
   const checkUpdate = async () => {
     try {
       const response = await fetch(CONFIG_URL);
       const config = await response.json();
 
-      if (config.latestVersion && compareVersions(config.latestVersion, CURRENT_VERSION) > 0) {
+      if (config.latestVersion && config.latestVersion !== CURRENT_VERSION) {
         Alert.alert(
           '🚀 Update Available!',
           config.message || 'A new version of Pearl AI is available with fresh prompts and better performance.',
