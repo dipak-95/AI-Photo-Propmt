@@ -69,19 +69,29 @@ export default function DashboardContent() {
                 </Link>
             </div>
 
-            {/* Stats Cards (Mock) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="glass-card p-6 rounded-2xl">
                     <p className="text-gray-400 text-sm">Total Photos</p>
                     <p className="text-3xl font-bold text-white mt-1">{prompts.length}</p>
                 </div>
-                <div className="glass-card p-6 rounded-2xl">
-                    <p className="text-gray-400 text-sm">Styles Active</p>
-                    <p className="text-3xl font-bold text-gradient mt-1">5</p>
+                <div className="glass-card p-6 rounded-2xl border-l-4 border-l-blue-500">
+                    <p className="text-gray-400 text-sm">Men Photos</p>
+                    <p className="text-3xl font-bold text-white mt-1">
+                        {prompts.filter(p => !p.category || p.category === 'Men').length}
+                    </p>
                 </div>
-                <div className="glass-card p-6 rounded-2xl">
-                    <p className="text-gray-400 text-sm">Views Today</p>
-                    <p className="text-3xl font-bold text-white mt-1">1,204</p>
+                <div className="glass-card p-6 rounded-2xl border-l-4 border-l-pink-500">
+                    <p className="text-gray-400 text-sm">Women Photos</p>
+                    <p className="text-3xl font-bold text-white mt-1">
+                        {prompts.filter(p => p.category === 'Women').length}
+                    </p>
+                </div>
+                <div className="glass-card p-6 rounded-2xl border-l-4 border-l-purple-500">
+                    <p className="text-gray-400 text-sm">Premium Photos</p>
+                    <p className="text-3xl font-bold text-gradient mt-1">
+                        {prompts.filter(p => p.category === 'Premium').length}
+                    </p>
                 </div>
             </div>
 

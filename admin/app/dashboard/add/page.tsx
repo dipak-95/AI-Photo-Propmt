@@ -118,8 +118,8 @@ export default function AddPromptPage() {
                                     type="button"
                                     onClick={() => setUploadMode('url')}
                                     className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${uploadMode === 'url'
-                                            ? 'bg-purple-500 text-white'
-                                            : 'bg-black/40 text-gray-400 border border-white/10'
+                                        ? 'bg-purple-500 text-white'
+                                        : 'bg-black/40 text-gray-400 border border-white/10'
                                         }`}
                                 >
                                     <LinkIcon className="w-4 h-4" />
@@ -129,8 +129,8 @@ export default function AddPromptPage() {
                                     type="button"
                                     onClick={() => setUploadMode('upload')}
                                     className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${uploadMode === 'upload'
-                                            ? 'bg-purple-500 text-white'
-                                            : 'bg-black/40 text-gray-400 border border-white/10'
+                                        ? 'bg-purple-500 text-white'
+                                        : 'bg-black/40 text-gray-400 border border-white/10'
                                         }`}
                                 >
                                     <Upload className="w-4 h-4" />
@@ -188,6 +188,7 @@ export default function AddPromptPage() {
                             >
                                 <option value="Men">Men</option>
                                 <option value="Women">Women</option>
+                                <option value="Premium">Premium</option>
                             </select>
                         </div>
 

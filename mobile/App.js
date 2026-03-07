@@ -1,1151 +1,2351 @@
 import 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import React, { useState, useEffect, useRef, useContext } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, TextInput, ScrollView, Alert, Share, RefreshControl, ActivityIndicator, Dimensions, Linking } from 'react-native';
+import React, { useState, useEffect, useRef, useContext, useMemo, useCallback } from 'react';
+import {
+  StyleSheet, Text, View, Image, TouchableOpacity, TextInput,
+  ScrollView, Alert, Share, RefreshControl, ActivityIndicator,
+  Dimensions, Linking, Animated, Easing,
+  FlatList, Pressable, Modal, Platform
+} from 'react-native';
 import { NavigationContainer, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { Zap, Heart, Settings, Shield, HelpCircle, Info, ChevronLeft, Copy, Share2, User, Sparkles, TrendingUp } from 'lucide-react-native';
-import { Animated } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import {
+  Zap, Heart, Settings, Shield, HelpCircle, Info, ChevronLeft,
+  Copy, Share2, User, Sparkles, TrendingUp, Coins, Crown,
+  Menu, Bell, ChevronRight, Lock, Unlock, PlayCircle, LogOut,
+  Mail, Star, MessageSquare, Edit2, Trash2, ShieldAlert
+} from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BannerAd, BannerAdSize, InterstitialAd, RewardedAd, AdEventType, RewardedAdEventType, AppOpenAd } from 'react-native-google-mobile-ads';
+import Svg, { Path, G, Text as SvgText, Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { useFonts, Outfit_400Regular, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
+import * as Notifications from 'expo-notifications';
+import {
+  BannerAd,
+  BannerAdSize,
+  TestIds,
+  AppOpenAd,
+  InterstitialAd,
+  RewardedAd,
+  AdEventType,
+  RewardedAdEventType,
+  MobileAds
+} from 'react-native-google-mobile-ads';
 
-const { width } = Dimensions.get('window');
+MobileAds().initialize();
 
-// API URL
-const API_URL = 'https://sdkv.online/api/prompts';
-
-// AdMob IDs
-const BANNER_AD_ID = 'ca-app-pub-9701184278274967/2110282579'; // Production ID
-const DETAILS_BANNER_ID = 'ca-app-pub-9701184278274967/6594622379'; // Details Top ID
-const INTERSTITIAL_AD_ID = 'ca-app-pub-3940256099942544/1033173712'; // Test ID
-const REWARDED_AD_ID = 'ca-app-pub-9701184278274967/4323682251'; // Production ID
-const APP_OPEN_AD_ID = 'ca-app-pub-9701184278274967/6376665373'; // Production ID
-
-// APP VERSION (Current)
-const CURRENT_VERSION = '3.2.0';
-const CONFIG_URL = 'https://sdkv.online/api/config';
-
-// Initialize Ads
-const interstitialAd = InterstitialAd.createForAdRequest(INTERSTITIAL_AD_ID);
-const rewardedAd = RewardedAd.createForAdRequest(REWARDED_AD_ID);
-const appOpenAd = AppOpenAd.createForAdRequest(APP_OPEN_AD_ID);
-
-// --- Context ---
-const FavoritesContext = React.createContext({
-  favorites: [],
-  setFavorites: () => { },
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
 });
 
-// --- Components ---
+const { width, height } = Dimensions.get('window');
 
-// Smart Ad Component to handle auto-sizing and avoid empty space
-function SmartAd({ unitId, size, containerStyle }) {
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
-
-  if (error) return null;
-
-  return (
-    <View style={[{ display: loaded ? 'flex' : 'none' }, containerStyle]}>
-      <BannerAd
-        unitId={unitId}
-        size={size}
-        onAdLoaded={() => setLoaded(true)}
-        onAdFailedToLoad={() => setError(true)}
-      />
-    </View>
-  );
-}
-
-// Liquid Fill Component
-const LiquidFillIcon = ({ Icon, color, progress }) => {
-  return (
-    <View style={{ width: 150, height: 150, alignItems: 'center', justifyContent: 'center' }}>
-      {/* Background Icon (Low Opacity) */}
-      <Icon color={color} size={150} style={{ opacity: 0.1, position: 'absolute' }} />
-
-      {/* Foreground Icon (Animated Fill) */}
-      <Animated.View style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        width: 150,
-        height: progress.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, 150]
-        }),
-        overflow: 'hidden',
-      }}>
-        <Icon color={color} size={150} style={{ position: 'absolute', bottom: 0 }} />
-      </Animated.View>
-    </View>
-  );
+// --- UTILS ---
+const seededRandom = (s) => {
+  const x = Math.sin(s) * 10000;
+  return x - Math.floor(x);
 };
 
-// Gradient Card Component
-const GradientCard = ({ item, navigation }) => {
-  const [imageLoading, setImageLoading] = useState(true);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(0.3)).current;
-
-  useEffect(() => {
-    if (imageLoading) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 0.3, duration: 1000, useNativeDriver: true }),
-        ])
-      ).start();
-    }
-  }, [imageLoading]);
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.95,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      friction: 3,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        style={styles.gradientCard}
-        onPress={() => navigation.navigate('Details', { item })}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={0.9}
-      >
-        <View style={styles.cardImageContainer}>
-          <Image
-            source={{ uri: item.imageUrl }}
-            style={styles.cardImage}
-            onLoadEnd={() => setImageLoading(false)}
-          />
-          {imageLoading && (
-            <Animated.View style={[StyleSheet.absoluteFill, styles.imagePlaceholder, { opacity: pulseAnim }]}>
-              <Zap size={24} color="#333" />
-            </Animated.View>
-          )}
-        </View>
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-          <View style={styles.cardTag}>
-            <Text style={styles.cardTagText}>{item.style || 'Art'}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
+const shuffleWithSeed = (array, seed) => {
+  if (!array || !seed) return array;
+  const newArray = [...array];
+  let seedNum = 0;
+  for (let i = 0; i < seed.length; i++) seedNum += seed.charCodeAt(i);
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(seededRandom(seedNum + i) * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
 };
 
-// Section Header
-const SectionHeader = ({ title, icon: Icon, color }) => (
-  <View style={styles.sectionHeader}>
-    <View style={styles.sectionHeaderLeft}>
-      <View style={[styles.iconBadge, { backgroundColor: color + '20' }]}>
-        <Icon color={color} size={20} />
-      </View>
-      <Text style={styles.sectionTitle}>{title}</Text>
-    </View>
-    <View style={[styles.trendingBadge, { backgroundColor: color + '15' }]}>
-      <TrendingUp color={color} size={14} />
-      <Text style={[styles.trendingText, { color }]}>Trending</Text>
-    </View>
-  </View>
-);
+// --- CONSTANTS ---
+const API_URL = 'https://sdkv.online/api/prompts';
+const CONFIG_URL = 'https://sdkv.online/api/config';
+const CURRENT_VERSION = '4.0.0';
 
-// --- Screens ---
+const PROMPT_COST = 25; // coins
+const FREE_SPIN_COOLDOWN = 2 * 60 * 60 * 1000; // 2 Hours
 
-// New Arrival Screen with Men/Women Sections
-function NewArrivalScreen({ navigation }) {
-  const [menPrompts, setMenPrompts] = useState([]);
-  const [womenPrompts, setWomenPrompts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showIntro, setShowIntro] = useState(true);
-  const introAnim = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(0)).current;
+// --- AD CONFIG (AdMob) ---
+const AD_IDS = {
+  APP_OPEN: 'ca-app-pub-9701184278274967/6376665373',
+  BANNER: 'ca-app-pub-9701184278274967/6594622379',
+  ADAPTIVE_BANNER: 'ca-app-pub-9701184278274967/2110282579',
+  INTERSTITIAL: 'ca-app-pub-9701184278274967/5638768935',
+  REWARDED: 'ca-app-pub-9701184278274967/4323682251',
+};
+
+// Global Ad instances (Singleton-style)
+const interstitialAd = InterstitialAd.createForAdRequest(AD_IDS.INTERSTITIAL);
+const rewardedAd = RewardedAd.createForAdRequest(AD_IDS.REWARDED);
+const appOpenAd = AppOpenAd.createForAdRequest(AD_IDS.APP_OPEN);
+
+const COLORS = {
+  dark: {
+    background: '#0F172A',
+    card: '#1E293B',
+    primary: '#8B5CF6',
+    secondary: '#94A3B8',
+    text: '#F1F5F9',
+    subText: '#94A3B8',
+    coin: '#FBBF24',
+    premium: '#8B5CF6',
+    border: '#334155',
+    cardShadow: '#000000',
+    accent: '#EC4899',
+    success: '#10B981',
+  },
+  light: {
+    background: '#F0F2FF',
+    card: '#FFFFFF',
+    primary: '#5B4CDB',
+    secondary: '#7C3AED',
+    text: '#1A1033',
+    subText: '#6B7280',
+    coin: '#F59E0B',
+    premium: '#7C3AED',
+    border: '#E4E4F7',
+    cardShadow: '#5B4CDB',
+    accent: '#EC4899',
+    success: '#10B981',
+  }
+};
+
+const UserContext = React.createContext();
+
+// --- COMPONENTS ---
+
+const AppText = ({ style, variant = 'regular', ...props }) => {
+  const fontFamily = variant === 'bold' ? 'Outfit_700Bold' : variant === 'semibold' ? 'Outfit_600SemiBold' : 'Outfit_400Regular';
+  return <Text style={[{ fontFamily }, style]} {...props} />;
+};
+
+const CoinBadge = ({ amount, onPress }) => {
+  const { theme } = useContext(UserContext);
+  const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    fetchPrompts();
-
-    // Start Intro Animation
-    Animated.timing(introAnim, {
-      toValue: 1,
-      duration: 3000,
-      useNativeDriver: false,
-    }).start(() => {
-      setShowIntro(false);
-    });
-
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 2000, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 2000, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1.08, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
       ])
     ).start();
   }, []);
 
-  const fetchPrompts = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(API_URL);
-      const data = await res.json();
-
-      // Filter prompts from last 24 hours
-      const now = new Date();
-      const last24h = data.filter(item => {
-        if (!item.createdAt) return false;
-        const createdDate = new Date(item.createdAt);
-        const hoursDiff = (now - createdDate) / (1000 * 60 * 60);
-        return hoursDiff <= 24;
-      });
-
-      // Separate by category
-      const men = last24h.filter(item => (item.category || 'Men') === 'Men').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
-      const women = last24h.filter(item => item.category === 'Women').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
-
-      setMenPrompts(men);
-      setWomenPrompts(women);
-    } catch (e) {
-      console.log('Error fetching:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchPrompts();
-    setRefreshing(false);
-  };
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {showIntro && (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0a0a', zIndex: 100, justifyContent: 'center', alignItems: 'center' }]}>
-          <LiquidFillIcon Icon={Zap} color="#FF6B9D" progress={introAnim} />
-          <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold', marginTop: 20 }}>Checking New Styles...</Text>
-        </View>
-      )}
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
+      <Animated.View style={[styles.coinBadge, {
+        backgroundColor: COLORS[theme].coin + '18',
+        borderColor: COLORS[theme].coin + '60',
+        borderWidth: 1.5,
+        transform: [{ scale: pulse }],
+        shadowColor: COLORS[theme].coin,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+        elevation: 6,
+      }]}>
+        <Coins size={16} color={COLORS[theme].coin} fill={COLORS[theme].coin} />
+        <AppText variant="semibold" style={[styles.coinAmount, { color: '#D97706' }]}>{amount}</AppText>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
 
-      {/* Header with Gradient */}
-      <View style={styles.headerGradient}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerSubtitle}>Discover Fresh</Text>
-            <Text style={styles.headerTitle}>New Arrivals ✨</Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('SettingsList')}
-            style={styles.settingsBtn}
-          >
-            <Settings color="#FF6B9D" size={24} />
-          </TouchableOpacity>
-        </View>
-      </View>
+// --- SCREENS ---
 
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF6B9D" colors={['#FF6B9D']} />}
-      >
-        {/* Men Section */}
-        {menPrompts.length > 0 && (
-          <View style={styles.section}>
-            <SectionHeader title="Men's Collection" icon={User} color="#00D9FF" />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScroll}
-            >
-              {menPrompts.map((item) => (
-                <View key={item.id} style={styles.horizontalCard}>
-                  <GradientCard item={item} navigation={navigation} />
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Women Section */}
-        {womenPrompts.length > 0 && (
-          <View style={styles.section}>
-            <SectionHeader title="Women's Collection" icon={Sparkles} color="#FF6B9D" />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScroll}
-            >
-              {womenPrompts.map((item) => (
-                <View key={item.id} style={styles.horizontalCard}>
-                  <GradientCard item={item} navigation={navigation} />
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {menPrompts.length === 0 && womenPrompts.length === 0 && !loading && (
-          <View style={styles.emptyState}>
-            <Animated.View style={{
-              transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) }],
-              opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] })
-            }}>
-              <Zap color="#FF6B9D" size={80} />
-            </Animated.View>
-            <Text style={styles.emptyText}>Taking a Coffee Break! ☕</Text>
-            <Text style={styles.emptySubtext}>Our AI is busy generating fresh new looks. Check back in a bit!</Text>
-            <TouchableOpacity onPress={onRefresh} style={{ marginTop: 24, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#FF6B9D20', borderRadius: 20 }}>
-              <Text style={{ color: '#FF6B9D', fontWeight: 'bold' }}>Refresh to Check ✨</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={{ height: 20 }} />
-
-        {/* Banner Ad - Bottom - Medium Rectangle */}
-        <SmartAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} containerStyle={{ alignItems: 'center', paddingBottom: 20 }} />
-      </ScrollView>
-
-    </SafeAreaView>
+function LoadingScreen() {
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(Animated.timing(spin, { toValue: 1, duration: 1200, useNativeDriver: true, easing: Easing.linear })).start();
+  }, []);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  return (
+    <View style={styles.centerContainer}>
+      <Animated.View style={{ transform: [{ rotate }] }}>
+        <Sparkles size={40} color="#5B4CDB" />
+      </Animated.View>
+      <AppText variant="semibold" style={{ color: '#5B4CDB', marginTop: 12, fontSize: 14 }}>Loading Prompts...</AppText>
+    </View>
   );
 }
 
-// Category Feed Screen (Men/Women)
-function FeedScreen({ category, navigation }) {
-  const [allPrompts, setAllPrompts] = useState([]);
-  const [displayedPrompts, setDisplayedPrompts] = useState([]);
-  const [visibleCount, setVisibleCount] = useState(10);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const [showIntro, setShowIntro] = useState(true);
-  const introAnim = useRef(new Animated.Value(0)).current;
+// Helper to chunk data into rows (2 prompts or 1 ad)
+const organizeIntoGrid = (data) => {
+  if (!data || data.length === 0) return [];
+  const result = [];
+  let tempRow = [];
 
-  const categoryColor = category === 'Men' ? '#00D9FF' : '#FF6B9D';
+  data.forEach((item, index) => {
+    tempRow.push(item);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      setSearch('');
-    }, [])
+    // Every 2 items (one full row of prompts), we check if we should inject an ad after
+    if (tempRow.length === 2) {
+      result.push({ type: 'prompts', items: tempRow });
+      tempRow = [];
+
+      // Inject ad every 2 rows (4 photos total)
+      // Since result now contains 'rows', index 1 means 2 rows (4 items)
+      if (result.length % 3 === 2) {
+        result.push({ type: 'ad', id: `ad-${index}` });
+      }
+    }
+  });
+
+  // Handle remaining single item if any
+  if (tempRow.length > 0) {
+    result.push({ type: 'prompts', items: tempRow });
+  }
+
+  return result;
+};
+
+const AdCard = ({ theme }) => {
+  const colorSet = COLORS[theme];
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <View style={{
+      width: '100%',
+      marginVertical: loaded ? 16 : 0,
+      height: loaded ? 'auto' : (failed ? 0 : 50),
+      overflow: 'hidden',
+      alignItems: 'center'
+    }}>
+      <View style={{
+        width: '100%',
+        alignItems: 'center',
+        opacity: loaded ? 1 : 0
+      }}>
+        <BannerAd
+          unitId={AD_IDS.ADAPTIVE_BANNER}
+          size={BannerAdSize.ADAPTIVE_BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+          onAdLoaded={() => {
+            setLoaded(true);
+            setFailed(false);
+          }}
+          onAdFailedToLoad={(err) => {
+            console.log('Ad failed:', err);
+            setLoaded(false);
+            setFailed(true);
+          }}
+        />
+        {loaded && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, marginBottom: 2 }}>
+            <View style={{ backgroundColor: colorSet.primary + '15', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, marginRight: 6 }}>
+              <AppText style={{ fontSize: 8, color: colorSet.primary, fontWeight: 'bold' }}>AD</AppText>
+            </View>
+            <AppText style={{ fontSize: 10, color: colorSet.subText }}>Sponsored Advertisement</AppText>
+          </View>
+        )}
+      </View>
+    </View>
   );
+};
+
+const PromptCard = ({ item, isLocked, isPremium, onPress }) => {
+  const { theme } = useContext(UserContext);
+  const colorSet = COLORS[theme];
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [imgLoading, setImgLoading] = useState(true);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true, speed: 50 }).start();
+  };
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 20 }).start();
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={1}
+    >
+      <Animated.View style={[styles.card, {
+        backgroundColor: colorSet.card,
+        transform: [{ scale: scaleAnim }],
+        shadowColor: colorSet.cardShadow,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: theme === 'light' ? 0.12 : 0.4,
+        shadowRadius: 16,
+        elevation: 8,
+      }]}>
+        <View style={styles.cardImageContainer}>
+          {imgLoading && (
+            <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: colorSet.border + '30' }]}>
+              <ActivityIndicator color={colorSet.primary} size="small" />
+            </View>
+          )}
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.cardImage}
+            onLoadStart={() => setImgLoading(true)}
+            onLoadEnd={() => setImgLoading(false)}
+          />
+          {/* Gradient overlay at bottom */}
+          <View style={styles.cardImageGradient} />
+          {isPremium && (
+            <View style={[styles.premiumBadge, { backgroundColor: '#7C3AED' }]}>
+              <Crown size={10} color="white" fill="white" />
+              <AppText variant="bold" style={styles.premiumBadgeText}>PRO</AppText>
+            </View>
+          )}
+          {item.isNew && (
+            <View style={[styles.newBadge, { backgroundColor: '#10B981' }]}>
+              <AppText variant="bold" style={styles.newBadgeText}>NEW</AppText>
+            </View>
+          )}
+          {isLocked && (
+            <View style={styles.lockPill}>
+              <Lock size={10} color="white" />
+              <AppText variant="bold" style={{ color: 'white', fontSize: 9, marginLeft: 3 }}>25 coins</AppText>
+            </View>
+          )}
+        </View>
+        <View style={styles.cardInfo}>
+          <AppText numberOfLines={1} variant="semibold" style={[styles.cardTitle, { color: colorSet.text }]}>{item.title}</AppText>
+          <AppText variant="regular" style={[styles.cardTag, { color: colorSet.subText }]}>{item.style || 'Art'}</AppText>
+        </View>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+const CategorySelector = ({ selected, onSelect }) => {
+  const { theme } = useContext(UserContext);
+  const categories = [
+    { key: 'MEN', label: '👨 Men', emoji: '👨' },
+    { key: 'WOMEN', label: '👩 Women', emoji: '👩' },
+    { key: 'PREMIUM', label: '👑 Premium', emoji: '👑' },
+  ];
+
+  return (
+    <View style={[styles.categoryContainer, { paddingHorizontal: 16 }]}>
+      {categories.map(cat => {
+        const isSelected = selected === cat.key;
+        return (
+          <TouchableOpacity
+            key={cat.key}
+            onPress={() => onSelect(cat.key)}
+            activeOpacity={0.8}
+            style={[
+              styles.categoryBtn,
+              isSelected
+                ? {
+                  backgroundColor: COLORS[theme].primary,
+                  shadowColor: COLORS[theme].primary,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.45,
+                  shadowRadius: 10,
+                  elevation: 8,
+                }
+                : {
+                  backgroundColor: COLORS[theme].card,
+                  borderWidth: 1.5,
+                  borderColor: COLORS[theme].border,
+                }
+            ]}
+          >
+            <AppText variant="bold" style={[styles.categoryText, { color: isSelected ? 'white' : COLORS[theme].subText, fontSize: 12 }]}>
+              {cat.label}
+            </AppText>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+};
+
+function HomeScreen({ navigation }) {
+  const { theme, userData, hasSubscription, showAlert } = useContext(UserContext);
+  const [selectedCategory, setSelectedCategory] = useState('MEN');
+  const [allPrompts, setAllPrompts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Pagination
+  const [visibleCount, setVisibleCount] = useState(12);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Switch Animation
+  const contentFade = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     fetchPrompts();
-
-    // Start Intro Animation
-    Animated.timing(introAnim, {
-      toValue: 1,
-      duration: 3000,
-      useNativeDriver: false,
-    }).start(() => {
-      setShowIntro(false);
-    });
   }, []);
-
-  useEffect(() => {
-    const filtered = allPrompts.filter(p => p.title.toLowerCase().includes(search.toLowerCase()));
-    setDisplayedPrompts(filtered.slice(0, visibleCount));
-  }, [search, allPrompts, visibleCount]);
 
   const fetchPrompts = async () => {
     try {
       const res = await fetch(API_URL);
       const data = await res.json();
-      const validData = data.filter(item => {
-        const itemCategory = item.category || 'Men';
-        return itemCategory === category;
-      });
-      setAllPrompts(validData);
+      // Daily Shuffle Logic
+      const dailySeed = new Date().toDateString();
+      const shuffled = shuffleWithSeed(data, dailySeed);
+      setAllPrompts(shuffled);
     } catch (e) {
-      console.log('Error fetching:', e);
+      console.log(e);
     } finally {
-      // Removed setLoading(false)
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchPrompts();
-    setRefreshing(false);
-    setVisibleCount(10);
+  const hasPass = userData.premiumPassExpiry > Date.now();
+
+  const onSelectCategory = (cat) => {
+    if (cat === 'PREMIUM' && !hasSubscription && !hasPass) {
+      showAlert(
+        '🔒 Premium Section',
+        'Direct access to Premium category requires a PRO Subscription or a 24-hour Premium Pass.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Get Access', onPress: () => navigation.navigate('Subscription') }
+        ]
+      );
+      return;
+    }
+
+    // Switch Animation
+    Animated.sequence([
+      Animated.timing(contentFade, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.delay(100),
+      Animated.timing(contentFade, { toValue: 1, duration: 250, useNativeDriver: true }),
+    ]).start();
+
+    setSelectedCategory(cat);
+    setVisibleCount(12); // Reset pagination on category change
+  };
+
+  const filteredPrompts = useMemo(() => {
+    return allPrompts.filter(p => {
+      if (selectedCategory === 'PREMIUM') return p.tier === 'premium' || p.isPremium;
+      const cat = p.category?.toUpperCase() || 'MEN';
+      return cat === selectedCategory;
+    });
+  }, [allPrompts, selectedCategory]);
+
+  const displayPrompts = useMemo(() => {
+    const list = filteredPrompts.slice(0, visibleCount);
+    return organizeIntoGrid(list);
+  }, [filteredPrompts, visibleCount]);
+
+  const loadMore = () => {
+    if (visibleCount >= filteredPrompts.length) return;
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setVisibleCount(prev => prev + 10);
+      setIsLoadingMore(false);
+    }, 800);
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {showIntro && (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0a0a', zIndex: 100, justifyContent: 'center', alignItems: 'center' }]}>
-          <LiquidFillIcon
-            Icon={category === 'Men' ? User : User}
-            color={categoryColor}
-            progress={introAnim}
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+      {/* Premium top bar */}
+      <View style={[styles.topBar, {
+        backgroundColor: COLORS[theme].background,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS[theme].border,
+      }]}>
+        <TouchableOpacity onPress={() => navigation.navigate('Profile')} activeOpacity={0.8}>
+          <View style={[styles.profileIcon, {
+            backgroundColor: COLORS[theme].primary + '18',
+            borderWidth: 1.5,
+            borderColor: COLORS[theme].primary + '40',
+            shadowColor: COLORS[theme].primary,
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.2,
+            shadowRadius: 6,
+            elevation: 4,
+          }]}>
+            <User size={22} color={COLORS[theme].primary} />
+          </View>
+        </TouchableOpacity>
+        <View style={{ alignItems: 'center' }}>
+          <AppText variant="bold" style={[styles.appTitle, { color: COLORS[theme].text, fontSize: 24 }]}>Pearl AI</AppText>
+          <AppText style={{ color: COLORS[theme].subText, fontSize: 10, letterSpacing: 2 }}>AI PROMPT STUDIO</AppText>
+        </View>
+        <CoinBadge amount={userData.coins} onPress={() => navigation.navigate('Spin')} />
+      </View>
+
+      <CategorySelector selected={selectedCategory} onSelect={onSelectCategory} />
+
+      {loading ? (
+        <LoadingScreen />
+      ) : (
+        <Animated.View style={{ flex: 1, opacity: contentFade }}>
+          <FlatList
+            data={displayPrompts}
+            keyExtractor={(item, index) => (item.type === 'ad' ? item.id : index.toString())}
+            numColumns={1}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPrompts(); }} colors={[COLORS[theme].primary]} />}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              if (item.type === 'ad') {
+                return <AdCard theme={theme} />;
+              }
+
+              return (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                  {item.items.map((prompt) => {
+                    const isPremium = prompt.tier === 'premium' || prompt.isPremium;
+                    const isUnlocked = userData.unlockedIds.includes(prompt.id) || hasSubscription;
+                    return (
+                      <PromptCard
+                        key={prompt.id}
+                        item={prompt}
+                        isLocked={!isUnlocked}
+                        isPremium={isPremium}
+                        onPress={() => navigation.navigate('Details', { item: prompt })}
+                      />
+                    );
+                  })}
+                  {item.items.length === 1 && <View style={{ width: (width / 2) - 24 }} />}
+                </View>
+              );
+            }}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Sparkles size={48} color={COLORS[theme].primary + '60'} />
+                <AppText variant="semibold" style={{ color: COLORS[theme].subText, marginTop: 12 }}>No prompts found</AppText>
+              </View>
+            }
+            ListFooterComponent={visibleCount < filteredPrompts.length && (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                {isLoadingMore ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <ActivityIndicator color={COLORS[theme].primary} />
+                    <AppText style={{ color: COLORS[theme].subText }}>Loading more...</AppText>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.loadMoreBtn, { borderColor: COLORS[theme].primary }]}
+                    onPress={loadMore}
+                  >
+                    <AppText variant="bold" style={{ color: COLORS[theme].primary }}>Load More</AppText>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           />
-          <View style={{ alignItems: 'center', marginTop: 30 }}>
-            <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>{category}'s Styles</Text>
-            <Text style={{ color: '#666', fontSize: 14, marginTop: 8 }}>Preparing masterpieces...</Text>
-          </View>
-        </View>
+        </Animated.View>
       )}
+    </SafeAreaView>
+  );
+}
 
-      {/* Category Header */}
-      <View style={styles.headerGradient}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerSubtitle}>Explore</Text>
-            <Text style={styles.headerTitle}>{category}'s Gallery</Text>
+function SpinScreen() {
+  const { theme, userData, updateUserData, showAlert } = useContext(UserContext);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [adLoaded, setAdLoaded] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current;
+  const currentAngle = useRef(0);
+  const WHEEL_SIZE = 290;
+  const navigation = useNavigation();
+
+  // Load rewarded ad
+  useEffect(() => {
+    const unsubLoaded = rewardedAd.addAdEventListener(RewardedAdEventType.LOADED, () => {
+      console.log('Rewarded Ad Loaded');
+    });
+    const unsubEarned = rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward) => {
+      updateUserData({ spinTickets: (userData.spinTickets || 0) + 1 });
+      showAlert('Reward Earned!', 'You got 1 extra spin ticket! 🎫', [{ text: 'Awesome' }], 'success');
+    });
+    rewardedAd.load();
+    return () => {
+      unsubLoaded();
+      unsubEarned();
+    };
+  }, []);
+
+  const watchRewardedAd = () => {
+    if (rewardedAd.loaded) {
+      rewardedAd.show();
+    } else {
+      showAlert('Loading Ad', 'Ad is loading, please try again in a few seconds.', [{ text: 'OK' }], 'info');
+      rewardedAd.load();
+    }
+  };
+
+  // 6 rewards — shuffled for excitement
+  const rewards = [10, 30, 5, 50, 15, 20];
+  const probabilities = [0.25, 0.07, 0.40, 0.03, 0.15, 0.10];
+
+  // Segment colors matching our premium UI
+  const segColors = ['#8B5CF6', '#F59E0B', '#6366F1', '#10B981', '#EF4444', '#EC4899'];
+  const NUM_SEGS = 6; // 6 solid colored segments
+  const SEG_ANGLE = 360 / NUM_SEGS; // 60 degrees each
+
+  // 4-hour countdown — always running, auto-grants ticket on expire
+  useEffect(() => {
+    const checkTimer = () => {
+      const now = Date.now();
+      const last = userData.lastSpinTime || 0;
+      const diff = now - last;
+      if (last === 0) {
+        // Initialize: give first spin free immediately
+        updateUserData({ lastSpinTime: now - FREE_SPIN_COOLDOWN });
+      } else {
+        const remaining = FREE_SPIN_COOLDOWN - diff;
+        setTimeLeft(Math.max(0, remaining));
+      }
+    };
+    const timer = setInterval(checkTimer, 1000);
+    checkTimer();
+    return () => clearInterval(timer);
+  }, [userData.lastSpinTime]);
+
+  const spin = () => {
+    const tickets = userData.spinTickets || 0;
+    const hasFreeSlot = timeLeft <= 0;
+    if (isSpinning || (!hasFreeSlot && tickets <= 0)) {
+      showAlert('No Spins!', 'Wait for the timer or collect extra tickets.', [{ text: 'OK' }], 'error');
+      return;
+    }
+    setIsSpinning(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    const rand = Math.random();
+    let sum = 0; let rewardIndex = 0;
+    for (let i = 0; i < probabilities.length; i++) {
+      sum += probabilities[i];
+      if (rand <= sum) { rewardIndex = i; break; }
+    }
+    const reward = rewards[rewardIndex];
+
+    // Correct logic to land exactly on the selected segment
+    // segCenter is the center of the target segment (0-360)
+    const segCenter = rewardIndex * SEG_ANGLE + SEG_ANGLE / 2;
+    // targetAngle is the rotation needed (from 0) to bring that center to the top (0°)
+    const targetAngle = (360 - segCenter) % 360;
+
+    const extraSpins = 10 + Math.floor(Math.random() * 5);
+    // Calculate how much we need to rotate from our CURRENT position to reach the targetAngle
+    const currentModulo = currentAngle.current % 360;
+    const rotationNeeded = (targetAngle - currentModulo + 360) % 360;
+
+    const finalAngle = currentAngle.current + (extraSpins * 360) + rotationNeeded;
+
+    Animated.timing(rotation, {
+      toValue: finalAngle,
+      duration: 6500,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        const useTicket = !hasFreeSlot && tickets > 0;
+
+        // Update currentAngle state for next spin and sync Animated value
+        currentAngle.current = finalAngle;
+        rotation.setValue(finalAngle);
+
+        updateUserData({
+          coins: userData.coins + reward,
+          spinTickets: useTicket ? Math.max(0, tickets - 1) : tickets,
+          lastSpinTime: hasFreeSlot ? Date.now() : userData.lastSpinTime,
+        });
+
+        setIsSpinning(false);
+        showAlert(
+          '🎉 Congratulations!',
+          `You won ${reward} COINS! 🪙\n\nNew Balance: ${userData.coins + reward} coins`,
+          [{ text: 'Awesome! 🙌', style: 'default' }],
+          'success'
+        );
+      }
+    });
+  };
+
+  const spinRotation = rotation.interpolate({
+    inputRange: [0, 36000],
+    outputRange: ['0deg', '36000deg'],
+    extrapolate: 'extend',
+  });
+
+  const formatTime = (ms) => {
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return `${h.toString().padStart(2, '0')}h ${m.toString().padStart(2, '0')}m ${s.toString().padStart(2, '0')}s`;
+  };
+
+  const tickets = userData.spinTickets || 0;
+  const hasFreeSlot = timeLeft <= 0;
+  const canSpin = hasFreeSlot || tickets > 0;
+
+  // Build 6 solid colored SVG segments (no white gaps)
+  const renderSegments = () => {
+    const segments = [];
+    for (let i = 0; i < NUM_SEGS; i++) {
+      const rot = i * SEG_ANGLE;
+      const startDeg = -90;
+      const x1 = 50 + 50 * Math.cos(Math.PI * startDeg / 180);
+      const y1 = 50 + 50 * Math.sin(Math.PI * startDeg / 180);
+      const x2 = 50 + 50 * Math.cos(Math.PI * (startDeg + SEG_ANGLE) / 180);
+      const y2 = 50 + 50 * Math.sin(Math.PI * (startDeg + SEG_ANGLE) / 180);
+
+      segments.push(
+        <G key={i} transform={`rotate(${rot}, 50, 50)`}>
+          <Path d={`M50,50 L${x1},${y1} A50,50 0 0,1 ${x2},${y2} Z`} fill={segColors[i]} />
+          <Path d={`M50,50 L${x1},${y1}`} stroke="rgba(255,255,255,0.3)" strokeWidth="0.6" />
+          <G transform={`rotate(${SEG_ANGLE / 2}, 50, 50)`}>
+            <SvgText x="50" y="17" fill="rgba(255,255,255,0.85)" fontSize="5" textAnchor="middle">🪙</SvgText>
+            <SvgText x="50" y="28" fill="white" fontSize="9" fontWeight="bold" textAnchor="middle">{rewards[i]}</SvgText>
+          </G>
+        </G>
+      );
+    }
+    return segments;
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+      <ScrollView contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 20, paddingBottom: 100, paddingTop: 10 }} showsVerticalScrollIndicator={false}>
+        <AppText variant="bold" style={[styles.mainHeading, { color: COLORS[theme].text }]}>🎰 Spin & Win</AppText>
+
+        {/* Coin + Ticket badges */}
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <CoinBadge amount={userData.coins} />
+          <View style={[styles.coinBadge, { backgroundColor: COLORS[theme].card, borderColor: COLORS[theme].primary, borderWidth: 1 }]}>
+            <Sparkles size={16} color={COLORS[theme].primary} />
+            <AppText variant="semibold" style={{ color: COLORS[theme].text, marginLeft: 5 }}>{tickets} Tickets</AppText>
           </View>
         </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
-            <Text style={styles.searchIcon}>🔍</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={`Search ${category.toLowerCase()} styles...`}
-              placeholderTextColor="#666"
-              value={search}
-              onChangeText={setSearch}
-            />
+        {/* Timer card */}
+        <View style={{ alignItems: 'center', marginBottom: 18, backgroundColor: COLORS[theme].card, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 16, borderWidth: 1, borderColor: hasFreeSlot ? '#10B981' : COLORS[theme].border }}>
+          <AppText style={{ color: COLORS[theme].subText, fontSize: 11, marginBottom: 3 }}>
+            {hasFreeSlot ? '✅ FREE SPIN READY' : '⏱  Next free spin in'}
+          </AppText>
+          <AppText variant="bold" style={{ color: hasFreeSlot ? '#10B981' : COLORS[theme].coin, fontSize: 20, letterSpacing: 2 }}>
+            {hasFreeSlot ? 'Claim it now!' : formatTime(timeLeft)}
+          </AppText>
+        </View>
+
+        {/* Wheel Assembly — container height fixed to match ring */}
+        <View style={{ width: WHEEL_SIZE + 20, height: WHEEL_SIZE + 20, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+
+          {/* Golden Teardrop PIN at TOP — pointing DOWN into wheel */}
+          <View style={{ position: 'absolute', top: -10, zIndex: 30, alignSelf: 'center' }}>
+            <Svg width="36" height="52" viewBox="0 0 36 52">
+              {/* Teardrop shape */}
+              <Path d="M18,50 C18,50 2,30 2,16 C2,7.2 9.2,0 18,0 C26.8,0 34,7.2 34,16 C34,30 18,50 18,50Z"
+                fill="#F59E0B" />
+              <Path d="M18,50 C18,50 2,30 2,16 C2,7.2 9.2,0 18,0 C26.8,0 34,7.2 34,16 C34,30 18,50 18,50Z"
+                fill="none" stroke="#d97706" strokeWidth="2" />
+              {/* Inner circle highlight */}
+              <Circle cx="18" cy="16" r="7" fill="rgba(255,255,255,0.3)" />
+              <Circle cx="18" cy="16" r="4" fill="rgba(255,255,255,0.5)" />
+            </Svg>
           </View>
+
+          {/* Golden outer ring (static, non-rotating) */}
+          <View style={{
+            position: 'absolute',
+            width: WHEEL_SIZE + 20, height: WHEEL_SIZE + 20,
+            borderRadius: (WHEEL_SIZE + 20) / 2,
+            borderWidth: 10,
+            borderColor: '#F59E0B',
+            zIndex: 5,
+            shadowColor: '#F59E0B',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.8,
+            shadowRadius: 15,
+            elevation: 10,
+          }} />
+
+          {/* Rotating Wheel */}
+          <Animated.View style={{
+            width: WHEEL_SIZE, height: WHEEL_SIZE,
+            borderRadius: WHEEL_SIZE / 2,
+            overflow: 'hidden',
+            backgroundColor: theme === 'dark' ? '#1E293B' : '#F8F8FF',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 15,
+            transform: [{ rotate: spinRotation }],
+          }}>
+            <Svg height={WHEEL_SIZE} width={WHEEL_SIZE} viewBox="0 0 100 100">
+              {renderSegments()}
+              {/* Divider lines ring */}
+              <Circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.3" />
+              {/* Center gold circle */}
+              <Circle cx="50" cy="50" r="9" fill="#F59E0B" />
+              <Circle cx="50" cy="50" r="8" fill="#FBBF24" />
+              {/* Star in center */}
+              <Path d="M50,42 L51.8,47.6 L57.6,47.6 L53,51.1 L54.8,56.7 L50,53.2 L45.2,56.7 L47,51.1 L42.4,47.6 L48.2,47.6 Z"
+                fill="#d97706" />
+            </Svg>
+          </Animated.View>
+        </View>
+
+        {/* SPIN Button */}
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 24, width: '100%' }}>
+          {/* SPIN Button */}
+          <TouchableOpacity
+            onPress={spin}
+            disabled={isSpinning || !canSpin}
+            activeOpacity={0.85}
+            style={[styles.spinBtn, {
+              flex: 1.2,
+              backgroundColor: !canSpin ? COLORS[theme].border : COLORS[theme].primary,
+              shadowColor: COLORS[theme].primary,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: canSpin ? 0.5 : 0,
+              elevation: 8,
+              paddingVertical: 14,
+            }]}
+          >
+            <AppText variant="bold" style={{ color: 'white', fontSize: 13, letterSpacing: 0.5 }}>
+              {isSpinning ? '🌀  ...' : hasFreeSlot ? '🆓  FREE' : tickets > 0 ? `🎟  Use Ticket` : '⏳  Wait'}
+            </AppText>
+          </TouchableOpacity>
+
+          {/* Requirement: Watch Ad and get extra spin - Rewarded Ad */}
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              backgroundColor: COLORS[theme].card,
+              paddingVertical: 14,
+              borderRadius: 20,
+              borderWidth: 1.5,
+              borderColor: COLORS[theme].border,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onPress={watchRewardedAd}
+          >
+            <PlayCircle size={18} color={COLORS[theme].primary} />
+            <AppText variant="semibold" style={{ color: COLORS[theme].primary, marginLeft: 6, fontSize: 13 }}>
+              +1 Ticket
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {/* Requirement: Spin screen Bottom Banner */}
+      <View style={{ width: '100%', alignItems: 'center', backgroundColor: COLORS[theme].background, paddingVertical: adLoaded ? 4 : 0, height: adLoaded ? 'auto' : 0, overflow: 'hidden' }}>
+        <BannerAd
+          unitId={AD_IDS.BANNER}
+          size={BannerAdSize.BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+          onAdLoaded={() => setAdLoaded(true)}
+          onAdFailedToLoad={() => setAdLoaded(false)}
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+
+function NewArrivalScreen({ navigation }) {
+  const { theme, userData, hasSubscription } = useContext(UserContext);
+  const [allNewPrompts, setAllNewPrompts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(12);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  useEffect(() => {
+    const fetchNew = async () => {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        const now = Date.now();
+        const dailySeed = new Date().toDateString();
+        const shuffled = shuffleWithSeed(data, dailySeed);
+
+        const filtered = shuffled.filter(i => {
+          // Requirement: Only show prompts from the last 24 hours
+          const isRecent = (now - new Date(i.createdAt).getTime()) <= 24 * 60 * 60 * 1000;
+          const isNotPremium = i.tier !== 'premium' && !i.isPremium;
+          return isRecent && isNotPremium;
+        });
+        setAllNewPrompts(filtered);
+      } catch (e) { } finally { setLoading(false); }
+    };
+    fetchNew();
+  }, []);
+
+  const displayPrompts = useMemo(() => {
+    const list = allNewPrompts.slice(0, visibleCount);
+    return organizeIntoGrid(list);
+  }, [allNewPrompts, visibleCount]);
+
+  const loadMore = () => {
+    if (visibleCount >= allNewPrompts.length) return;
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setVisibleCount(prev => prev + 10);
+      setIsLoadingMore(false);
+    }, 800);
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+      <View style={styles.screenHeader}>
+        <View>
+          <AppText variant="bold" style={[styles.screenHeaderTitle, { color: COLORS[theme].text }]}>New Arrivals</AppText>
+          <AppText style={{ color: COLORS[theme].subText, fontSize: 12, marginTop: 2 }}>Fresh prompt inspiration daily</AppText>
+        </View>
+        <View style={[styles.screenHeaderBadge, { backgroundColor: COLORS[theme].primary + '18' }]}>
+          <Sparkles size={18} color={COLORS[theme].primary} />
+        </View>
+      </View>
+      {loading ? <LoadingScreen /> : (
+        <FlatList
+          data={displayPrompts}
+          keyExtractor={(item, index) => (item.type === 'ad' ? item.id : index.toString())}
+          numColumns={1}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => {
+            if (item.type === 'ad') return <AdCard theme={theme} />;
+            return (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                {item.items.map((prompt) => (
+                  <PromptCard
+                    key={prompt.id}
+                    item={{ ...prompt, isNew: true }}
+                    isLocked={!(userData.unlockedIds.includes(prompt.id) || hasSubscription)}
+                    isPremium={prompt.tier === 'premium'}
+                    onPress={() => navigation.navigate('Details', { item: prompt })}
+                  />
+                ))}
+                {item.items.length === 1 && <View style={{ width: (width / 2) - 24 }} />}
+              </View>
+            );
+          }}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Sparkles size={52} color={COLORS[theme].primary + '40'} />
+              <AppText variant="semibold" style={{ color: COLORS[theme].subText, marginTop: 14, fontSize: 16 }}>No new arrivals yet</AppText>
+              <AppText style={{ color: COLORS[theme].subText, fontSize: 13, marginTop: 6 }}>Check back soon!</AppText>
+            </View>
+          }
+          ListFooterComponent={visibleCount < allNewPrompts.length && (
+            <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+              {isLoadingMore ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <ActivityIndicator color={COLORS[theme].primary} />
+                  <AppText style={{ color: COLORS[theme].subText }}>Loading more...</AppText>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.loadMoreBtn, { borderColor: COLORS[theme].primary }]}
+                  onPress={loadMore}
+                >
+                  <AppText variant="bold" style={{ color: COLORS[theme].primary }}>Load More</AppText>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
+function FavoritesScreen({ navigation }) {
+  const { theme, userData, hasSubscription } = useContext(UserContext);
+  const [favs, setFavs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [adLoaded, setAdLoaded] = useState(false);
+
+  useEffect(() => {
+    const fetchFavs = async () => {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        const filtered = data.filter(i => userData.favorites.includes(i.id));
+        setFavs(filtered);
+      } catch (e) { } finally { setLoading(false); }
+    };
+    fetchFavs();
+  }, [userData.favorites]);
+
+  const displayFavs = useMemo(() => {
+    return organizeIntoGrid(favs);
+  }, [favs]);
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+      <View style={styles.screenHeader}>
+        <View>
+          <AppText variant="bold" style={[styles.screenHeaderTitle, { color: COLORS[theme].text }]}>Saved</AppText>
+          <AppText style={{ color: COLORS[theme].subText, fontSize: 12, marginTop: 2 }}>Your favorite prompts</AppText>
+        </View>
+        <View style={[styles.screenHeaderBadge, { backgroundColor: '#EF444418' }]}>
+          <Heart size={18} color="#EF4444" fill="#EF4444" />
         </View>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={categoryColor} colors={[categoryColor]} />}
-      >
-        <View style={styles.gridContainer}>
-          {displayedPrompts.map((item, index) => (
-            <React.Fragment key={item.id}>
-              <View style={styles.gridCard}>
-                <GradientCard item={item} navigation={navigation} />
-              </View>
-              {/* Insert Ad after every 6th item */}
-              {(index + 1) % 6 === 0 && (
-                <SmartAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} containerStyle={{ width: '100%', alignItems: 'center', marginVertical: 20 }} />
-              )}
-            </React.Fragment>
-          ))}
-        </View>
+      {/* Requirement: Favourite section Top Banner */}
+      <View style={{ width: '100%', alignItems: 'center', marginBottom: adLoaded ? 10 : 0, height: adLoaded ? 'auto' : 0, overflow: 'hidden' }}>
+        <BannerAd
+          unitId={AD_IDS.BANNER}
+          size={BannerAdSize.BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+          onAdLoaded={() => setAdLoaded(true)}
+          onAdFailedToLoad={() => setAdLoaded(false)}
+        />
+      </View>
 
-        {displayedPrompts.length < allPrompts.filter(p => p.title.toLowerCase().includes(search.toLowerCase())).length && (
-          <TouchableOpacity
-            onPress={() => setVisibleCount(c => c + 16)}
-            style={[styles.loadMoreBtn, { borderColor: categoryColor, backgroundColor: '#1a1a1a' }]}
-          >
-            <View
-              style={styles.loadMoreGradient}
-            >
-              <Text style={[styles.loadMoreText, { color: categoryColor }]}>Load More ✨</Text>
+      {loading ? <LoadingScreen /> : (
+        <FlatList
+          data={displayFavs} numColumns={1} contentContainerStyle={styles.listContent}
+          keyExtractor={(item, index) => (item.type === 'ad' ? item.id : index.toString())}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => {
+            if (item.type === 'ad') return <AdCard theme={theme} />;
+            return (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                {item.items.map((prompt) => (
+                  <PromptCard
+                    key={prompt.id}
+                    item={prompt}
+                    isLocked={!(userData.unlockedIds.includes(prompt.id) || hasSubscription)}
+                    isPremium={prompt.tier === 'premium'}
+                    onPress={() => navigation.navigate('Details', { item: prompt })}
+                  />
+                ))}
+                {item.items.length === 1 && <View style={{ width: (width / 2) - 24 }} />}
+              </View>
+            );
+          }}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Heart size={52} color="#EF444440" fill="#EF444440" />
+              <AppText variant="semibold" style={{ color: COLORS[theme].subText, marginTop: 14, fontSize: 16 }}>No favorites yet</AppText>
+              <AppText style={{ color: COLORS[theme].subText, fontSize: 13, marginTop: 6 }}>Save prompts you love!</AppText>
             </View>
-          </TouchableOpacity>
-        )}
-        <View style={{ height: 40 }} />
+          }
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
+function PrivacyPolicyScreen({ navigation }) {
+  const { theme } = useContext(UserContext);
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+      <View style={styles.navHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.navBackBtn, { backgroundColor: COLORS[theme].card }]}>
+          <ChevronLeft color={COLORS[theme].text} size={22} />
+        </TouchableOpacity>
+        <AppText variant="bold" style={[styles.navHeaderTitle, { color: COLORS[theme].text }]}>Privacy Policy</AppText>
+        <View style={{ width: 40 }} />
+      </View>
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        <AppText style={{ color: COLORS[theme].text, lineHeight: 24 }}>
+          Last Updated: March 2026{"\n\n"}
+          Your privacy is important to us. This Privacy Policy explains how we collect, use, and protect your information when you use our AI Photo Prompts app.{"\n\n"}
+          1. Data Collection{"\n"}
+          All your data (favourite items, unlocked prompts, coin balance, and name) is stored LOCAL ON YOUR DEVICE. We do not collect or store this data on our servers as we do not have a login system.{"\n\n"}
+          2. How We Use Data{"\n"}
+          Your data is used only to provide the app's features, such as keeping track of your coins and favorite prompts.{"\n\n"}
+          3. Security{"\n"}
+          Since all data is stored on your device, the security of your information depends on your device's security settings.{"\n\n"}
+          4. Refund Policy{"\n"}
+          You can cancel your PRO subscription at any time. We will refund coins for the remaining full days of your subscription.{"\n\n"}
+          5. Contact Us{"\n"}
+          If you have any questions, please contact our support team.
+        </AppText>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function DetailsScreen({ route }) {
-  const { item } = route.params;
-  const navigation = useNavigation();
-  const { favorites, setFavorites } = useContext(FavoritesContext);
-  const isFav = favorites.find(f => f.id === item.id);
+function ProfileScreen({ navigation }) {
+  const { theme, userData, updateUserData, hasSubscription } = useContext(UserContext);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState(userData.name || 'Member');
+  const C = COLORS[theme];
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [ratio, setRatio] = useState(1);
-  const [unlocked, setUnlocked] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const progressInterval = useRef(null);
-
-  // Ad Event Listeners
-  useEffect(() => {
-    Image.getSize(item.imageUrl, (w, h) => setRatio(w / h), () => { });
-    Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-
-    const unsubscribeLoaded = rewardedAd.addAdEventListener(RewardedAdEventType.LOADED, () => {
-      // Ad Loaded
-    });
-
-    const unsubscribeEarned = rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
-      setUnlocked(true);
-      setLoading(false);
-    });
-
-    const unsubscribeClosed = rewardedAd.addAdEventListener(AdEventType.CLOSED, () => {
-      setLoading(false);
-      // Load next ad when current one closes
-      rewardedAd.load();
-    });
-
-    // Load ad on mount if not loaded
-    rewardedAd.load();
-
-    return () => {
-      unsubscribeLoaded();
-      unsubscribeEarned();
-      unsubscribeClosed();
-      if (progressInterval.current) clearInterval(progressInterval.current);
-    };
-  }, []);
-
-  const showAd = () => {
-    try {
-      if (rewardedAd && rewardedAd.loaded) {
-        rewardedAd.show();
-      } else {
-        // Fallback: Unlock if ad fails to load
-        setUnlocked(true);
-        Alert.alert('✨ Unlocked!', 'Prompt unlocked successfully!');
-      }
-    } catch (error) {
-      console.log('Ad Show Error:', error);
-      setUnlocked(true);
-    } finally {
-      setLoading(false);
-    }
+  const handleSaveName = () => {
+    updateUserData({ name: newName });
+    setIsEditingName(false);
   };
 
+  const menuItems = [
+    { label: 'Subscription Plans', desc: 'Upgrade to PRO', icon: Crown, screen: 'Subscription', color: C.premium },
+    { label: 'Privacy Policy', desc: 'Terms & data usage', icon: Shield, screen: 'PrivacyPolicy', color: '#10B981' },
+    { label: 'Rate Us ⭐', desc: 'Love the app? Tell us!', icon: Star, color: '#F59E0B' },
+  ];
 
-  const handleUnlock = () => {
-    Alert.alert(
-      '🎁 Unlock Prompt',
-      'Watch a short ad to unlock this prompt for free!',
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]}>
+      <View style={styles.navHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.navBackBtn, { backgroundColor: C.card }]}>
+          <ChevronLeft color={C.text} size={22} />
+        </TouchableOpacity>
+        <AppText variant="bold" style={[styles.navHeaderTitle, { color: C.text }]}>Profile</AppText>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+        {/* Profile Hero Card */}
+        <View style={[styles.profileHeroCard, { backgroundColor: C.card }]}>
+          <View style={[styles.profileAvatarRing, { borderColor: C.primary + '40' }]}>
+            <View style={[styles.profileAvatarInner, { backgroundColor: C.primary + '18' }]}>
+              <User size={40} color={C.primary} />
+            </View>
+          </View>
+          {hasSubscription && (
+            <View style={[styles.proBadge, { backgroundColor: C.premium }]}>
+              <Crown size={10} color="white" fill="white" />
+              <AppText variant="bold" style={{ color: 'white', fontSize: 9, marginLeft: 3 }}>PRO</AppText>
+            </View>
+          )}
+
+          {isEditingName ? (
+            <View style={{ alignItems: 'center', marginTop: 10 }}>
+              <TextInput
+                style={[styles.nameInput, { color: C.text, borderBottomColor: C.primary, width: 200 }]}
+                value={newName}
+                onChangeText={setNewName}
+                autoFocus
+                maxLength={20}
+                textAlign="center"
+              />
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                <TouchableOpacity onPress={() => { setIsEditingName(false); setNewName(userData.name || 'Member'); }} style={[styles.nameBtn, { backgroundColor: C.border }]}>
+                  <AppText style={{ fontSize: 12, color: C.subText }}>Cancel</AppText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSaveName} style={[styles.nameBtn, { backgroundColor: C.primary }]}>
+                  <AppText variant="bold" style={{ color: 'white', fontSize: 12 }}>Save</AppText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={() => setIsEditingName(true)} style={styles.nameRow} activeOpacity={0.7}>
+              <AppText variant="bold" style={[styles.profileName, { color: C.text }]}>{userData.name || 'Member'}</AppText>
+              <View style={[styles.editChip, { backgroundColor: C.primary + '15' }]}>
+                <Edit2 size={12} color={C.primary} />
+                <AppText style={{ color: C.primary, fontSize: 10, marginLeft: 4 }}>Edit</AppText>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <AppText variant="bold" style={[styles.statValue, { color: C.coin }]}>{userData.coins}</AppText>
+              <AppText style={[styles.statLabel, { color: C.subText }]}>Coins</AppText>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: C.border }]} />
+            <View style={styles.statItem}>
+              <AppText variant="bold" style={[styles.statValue, { color: C.primary }]}>{userData.unlockedIds.length}</AppText>
+              <AppText style={[styles.statLabel, { color: C.subText }]}>Unlocked</AppText>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: C.border }]} />
+            <View style={styles.statItem}>
+              <AppText variant="bold" style={[styles.statValue, { color: '#EF4444' }]}>{userData.favorites.length}</AppText>
+              <AppText style={[styles.statLabel, { color: C.subText }]}>Saved</AppText>
+            </View>
+          </View>
+        </View>
+
+        {/* 🔥 Daily Streak Card */}
+        <View style={[styles.streakCard, { backgroundColor: '#FFF7ED', borderColor: '#F59E0B40' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+            <AppText style={{ fontSize: 28 }}>🔥</AppText>
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <AppText variant="bold" style={{ color: '#92400E', fontSize: 18 }}>{userData.currentStreak || 0} Day Streak</AppText>
+              <AppText style={{ color: '#B45309', fontSize: 12, marginTop: 2 }}>Best: {userData.longestStreak || 0} days</AppText>
+            </View>
+            <View style={[styles.streakBadge, { backgroundColor: '#F59E0B' }]}>
+              <AppText variant="bold" style={{ color: 'white', fontSize: 12 }}>{userData.currentStreak || 0}🔥</AppText>
+            </View>
+          </View>
+
+          {/* 7-day dots */}
+          <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'center' }}>
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => {
+              const todayDow = (new Date().getDay() + 6) % 7; // Mon=0
+              const diffFromToday = todayDow - i;
+              const filled = diffFromToday >= 0 && (userData.currentStreak || 0) > diffFromToday;
+              return (
+                <View key={i} style={[styles.streakDayPill, {
+                  backgroundColor: i === todayDow ? C.primary : filled ? '#F59E0B' : '#E4E4F7',
+                  borderColor: i === todayDow ? C.primary : 'transparent',
+                }]}>
+                  <AppText variant="bold" style={{ fontSize: 9, color: (filled || i === todayDow) ? 'white' : '#9CA3AF' }}>{d.charAt(0)}</AppText>
+                </View>
+              );
+            })}
+          </View>
+
+          <AppText style={{ color: '#92400E', fontSize: 11, textAlign: 'center', marginTop: 10 }}>
+            🎯 Open app daily to keep your streak alive!
+          </AppText>
+        </View>
+
+        {/* 🏆 Streak Rewards Roadmap */}
+        <AppText variant="semibold" style={{ color: C.subText, fontSize: 11, letterSpacing: 1, marginBottom: 8, marginLeft: 4 }}>REWARD SYSTEM 🔥</AppText>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 10 }}>
+          {[
+            { days: '1-5', coins: 10, icon: '🔥' },
+            { days: '6-14', coins: 15, icon: '⚡' },
+            { days: '15-29', coins: 20, icon: '✨' },
+            { days: '30', coins: 30, icon: '🌟' },
+            { days: '31', coins: 30, bonus: '1D Pass', icon: '🎫' },
+            { days: '32-60', coins: 30, icon: '💎' },
+            { days: '61', coins: 40, bonus: '7D Pass', icon: '👑' },
+            { days: '62+', coins: 40, icon: '💫' },
+          ].map((r, i) => (
+            <View key={i} style={[styles.rewardMilestoneCard, { backgroundColor: C.card }]}>
+              <AppText style={{ fontSize: 20 }}>{r.icon}</AppText>
+              <AppText variant="bold" style={{ fontSize: 14, color: C.text, marginTop: 4 }}>Day {r.days}</AppText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                <Coins size={10} color={C.coin} />
+                <AppText variant="bold" style={{ fontSize: 11, color: C.coin, marginLeft: 3 }}>{r.coins}</AppText>
+              </View>
+              {r.bonus && (
+                <View style={{ backgroundColor: C.primary + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 }}>
+                  <AppText variant="bold" style={{ color: C.primary, fontSize: 8 }}>{r.bonus}</AppText>
+                </View>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* Menu Items */}
+        <AppText variant="semibold" style={{ color: C.subText, fontSize: 11, letterSpacing: 1, marginTop: 10, marginBottom: 8, marginLeft: 4 }}>SETTINGS</AppText>
+        <View style={{ gap: 10 }}>
+          {menuItems.map((it, i) => {
+            const Icon = it.icon;
+            return (
+              <TouchableOpacity
+                key={i}
+                style={[styles.premiumMenuItem, { backgroundColor: C.card }]}
+                onPress={() => it.screen && navigation.navigate(it.screen)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.menuIconBox, { backgroundColor: it.color + '18' }]}>
+                  <Icon size={20} color={it.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="semibold" style={{ color: C.text, fontSize: 15 }}>{it.label}</AppText>
+                  <AppText style={{ color: C.subText, fontSize: 12, marginTop: 2 }}>{it.desc}</AppText>
+                </View>
+                {it.screen && <ChevronRight size={18} color={C.subText} />}
+              </TouchableOpacity>
+            );
+          })}
+
+          {hasSubscription && (
+            <View style={[styles.premiumMenuItem, { backgroundColor: C.success + '12', borderColor: C.success + '30', borderWidth: 1 }]}>
+              <View style={[styles.menuIconBox, { backgroundColor: C.success + '20' }]}>
+                <Crown size={20} color={C.success} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppText variant="bold" style={{ color: C.success, fontSize: 15 }}>PRO Mode Active</AppText>
+                <AppText style={{ color: C.success + 'AA', fontSize: 12, marginTop: 2 }}>Full access to all categories</AppText>
+              </View>
+              <View style={[styles.activeTag, { backgroundColor: C.success }]}>
+                <AppText variant="bold" style={{ color: 'white', fontSize: 10 }}>ACTIVE</AppText>
+              </View>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function SubscriptionScreen({ navigation }) {
+  const { theme, userData, updateUserData, updateSubscription, hasSubscription, showAlert } = useContext(UserContext);
+
+  const hasPass = userData.premiumPassExpiry > Date.now();
+
+  const plans = [
+    { id: 'weekly', title: 'Weekly Plan', price: 900, days: 7, desc: 'Full access for a week' },
+    { id: 'monthly', title: 'Monthly Plan', price: 3600, days: 30, desc: 'Most save and popular', popular: true },
+    { id: '3month', title: '3 Months Plan', price: 9000, days: 90, desc: 'Maximum value experience' },
+  ];
+
+  const handlePurchase = (plan) => {
+    if (hasSubscription) {
+      showAlert('Already PRO', 'You already have an active subscription.', [{ text: 'Awesome' }], 'success');
+      return;
+    }
+    if (userData.coins < plan.price) {
+      showAlert('Low Coins', `You need ${plan.price - userData.coins} more coins.`, [{ text: 'Get Coins', onPress: () => navigation.navigate('Spin') }, { text: 'Cancel', style: 'cancel' }], 'error');
+      return;
+    }
+
+    showAlert(
+      'Confirm Plan',
+      `Unlock PRO status for ${plan.days} days using ${plan.price} coins?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Yes, Unlock',
+          text: 'Buy Now',
           onPress: () => {
-            setLoading(true);
-            setProgress(0);
-
-            // Start Loading Ad explicitly if not ready
-            if (!rewardedAd.loaded) {
-              rewardedAd.load();
-            }
-
-            // Progress bar for 5 seconds (Reduced from 7 for better UX)
-            let progressValue = 0;
-            progressInterval.current = setInterval(() => {
-              progressValue += 100 / 50; // 5 seconds = 50 steps
-              setProgress(progressValue);
-
-              if (progressValue >= 100) {
-                if (progressInterval.current) clearInterval(progressInterval.current);
-                showAd();
-              }
-            }, 100);
+            updateUserData({ coins: userData.coins - plan.price });
+            updateSubscription(plan.days, plan.price);
+            showAlert('Success!', 'PRO Status activated. All sections are now unlocked!', [{ text: 'Great!' }], 'success');
+            navigation.goBack();
           }
         }
       ]
     );
   };
 
-  const toggleFavorite = () => {
-    if (isFav) setFavorites(favorites.filter(f => f.id !== item.id));
-    else setFavorites([...favorites, item]);
+  const buyPremiumPass = () => {
+    if (hasSubscription) {
+      showAlert('Already PRO', 'You already have full access with your PRO plan.', [{ text: 'Got it' }], 'success');
+      return;
+    }
+    if (hasPass) {
+      showAlert('Pass Active', 'Your 24-hour pass is already active.', [{ text: 'Done' }], 'info');
+      return;
+    }
+    if (userData.coins < 250) {
+      showAlert('Low Coins', 'Premium Pass costs 250 coins.', [{ text: 'Get Coins', onPress: () => navigation.navigate('Spin') }, { text: 'Back', style: 'cancel' }], 'error');
+      return;
+    }
+
+    showAlert(
+      '24h Premium Pass',
+      'Unlock Premium category for 24 hours. Includes 10 FREE unlocks, then 25 coins each.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Buy for 250',
+          onPress: () => {
+            updateUserData({
+              coins: userData.coins - 250,
+              premiumPassExpiry: Date.now() + 24 * 60 * 60 * 1000,
+              premiumPassUnlocks: 0
+            });
+            showAlert('Pass Activated!', 'You can now access the Premium category for 24 hours!', [{ text: 'Let’s Go!' }], 'success');
+          }
+        }
+      ]
+    );
   };
 
-  const copyToClipboard = async () => {
-    await Clipboard.setStringAsync(item.prompt);
-    Alert.alert('✨ Copied!', 'Prompt copied to clipboard.');
-  };
-
+  const C = COLORS[theme];
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.detailHeader}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <View style={styles.backBtnCircle}>
-            <ChevronLeft color="white" size={24} />
-          </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]}>
+      <View style={styles.navHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.navBackBtn, { backgroundColor: C.card }]}>
+          <ChevronLeft color={C.text} size={22} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={toggleFavorite} style={styles.favBtn}>
-          <View style={[styles.favBtnCircle, isFav && styles.favBtnActive]}>
-            <Heart fill={isFav ? "#FF6B9D" : "transparent"} color={isFav ? "#FF6B9D" : "white"} size={24} />
-          </View>
-        </TouchableOpacity>
+        <AppText variant="bold" style={[styles.navHeaderTitle, { color: C.text }]}>Plans</AppText>
+        <View style={{ width: 40 }} />
       </View>
 
-      {/* Banner Ad - Top (Specific for Details) */}
-      <SmartAd unitId={DETAILS_BANNER_ID} size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} containerStyle={{ backgroundColor: '#0a0a0a', alignItems: 'center', paddingVertical: 5 }} />
-
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <Animated.Image
-          source={{ uri: item.imageUrl }}
-          style={[styles.detailImage, { opacity: fadeAnim, aspectRatio: ratio }]}
-        />
-
-        <View style={styles.detailContent}>
-          <View style={styles.detailTagRow}>
-            <View style={styles.detailTag}>
-              <Text style={styles.detailTagText}>{item.style || 'Art'}</Text>
-            </View>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{item.category || 'Men'}</Text>
-            </View>
-          </View>
-
-          <Text style={styles.detailTitle}>{item.title}</Text>
-
-          {unlocked ? (
-            <View style={styles.promptContainer}>
-              <View style={styles.promptBox}>
-                <Text style={styles.promptLabel}>✨ AI Prompt</Text>
-                <Text style={styles.promptText}>{item.prompt}</Text>
-              </View>
-
-              <View style={styles.actionButtons}>
-                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FF6B9D' }]} onPress={copyToClipboard}>
-                  <View style={styles.actionBtnGradient}>
-                    <Copy color="white" size={20} />
-                    <Text style={styles.actionBtnText}>Copy</Text>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        {/* Vouchers Section */}
+        {(userData.vouchers?.dayPass > 0 || userData.vouchers?.weekPass > 0) && (
+          <>
+            <AppText variant="semibold" style={{ color: C.subText, fontSize: 11, letterSpacing: 1, marginBottom: 10 }}>MY VOUCHERS 🎁</AppText>
+            <View style={{ gap: 10, marginBottom: 20 }}>
+              {userData.vouchers?.dayPass > 0 && (
+                <TouchableOpacity
+                  style={[styles.voucherItem, { backgroundColor: C.primary + '10', borderColor: C.primary + '30' }]}
+                  onPress={() => {
+                    showAlert('Redeem Voucher', 'Use 1x Premium Day Pass now?', [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Redeem', onPress: () => {
+                          updateUserData({
+                            vouchers: { ...userData.vouchers, dayPass: userData.vouchers.dayPass - 1 },
+                            premiumPassExpiry: Date.now() + 24 * 60 * 60 * 1000,
+                            premiumPassUnlocks: 0
+                          });
+                          showAlert('Success!', '1-Day Premium Pass activated.', [{ text: 'Great!' }], 'success');
+                        }
+                      }
+                    ]);
+                  }}
+                >
+                  <View style={[styles.voucherIcon, { backgroundColor: C.primary }]}>
+                    <Zap size={20} color="white" />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <AppText variant="bold" style={{ color: C.primary }}>Premium 1-Day Pass</AppText>
+                    <AppText style={{ fontSize: 11, color: C.subText }}>Valid for 24 hours · 5 free unlocks</AppText>
+                  </View>
+                  <View style={{ backgroundColor: C.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                    <AppText variant="bold" style={{ color: 'white', fontSize: 12 }}>x{userData.vouchers.dayPass}</AppText>
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#00D9FF' }]} onPress={() => Share.share({ message: item.prompt })}>
-                  <View style={styles.actionBtnGradient}>
-                    <Share2 color="white" size={20} />
-                    <Text style={styles.actionBtnText}>Share</Text>
+              )}
+              {userData.vouchers?.weekPass > 0 && (
+                <TouchableOpacity
+                  style={[styles.voucherItem, { backgroundColor: C.premium + '10', borderColor: C.premium + '30' }]}
+                  onPress={() => {
+                    showAlert('Redeem Voucher', 'Use 1x Weekly PRO Pass now?', [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Redeem', onPress: () => {
+                          updateUserData({
+                            vouchers: { ...userData.vouchers, weekPass: userData.vouchers.weekPass - 1 }
+                          });
+                          updateSubscription(7, 0);
+                          showAlert('Success!', '7-Day PRO Status activated.', [{ text: 'Awesome' }], 'success');
+                        }
+                      }
+                    ]);
+                  }}
+                >
+                  <View style={[styles.voucherIcon, { backgroundColor: C.premium }]}>
+                    <Crown size={20} color="white" />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <AppText variant="bold" style={{ color: C.premium }}>Weekly PRO Pass</AppText>
+                    <AppText style={{ fontSize: 11, color: C.subText }}>7 days full access to everything</AppText>
+                  </View>
+                  <View style={{ backgroundColor: C.premium, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                    <AppText variant="bold" style={{ color: 'white', fontSize: 12 }}>x{userData.vouchers.weekPass}</AppText>
                   </View>
                 </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <View>
-              <TouchableOpacity
-                style={[styles.unlockBtn, { backgroundColor: '#FF6B9D', opacity: loading ? 0.7 : 1 }]}
-                onPress={handleUnlock}
-                disabled={loading}
-              >
-                <View style={styles.unlockBtnGradient}>
-                  <Zap color="white" size={20} />
-                  <Text style={styles.unlockBtnText}>{loading ? 'Loading...' : 'Unlock Prompt'}</Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* Progress Bar */}
-              {loading && (
-                <View style={styles.progressContainer}>
-                  <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: `${progress}%` }]} />
-                  </View>
-                  <Text style={styles.progressText}>
-                    {Math.round(progress)}% - {progress < 100 ? 'Loading ad...' : 'Ready!'}
-                  </Text>
-                </View>
               )}
             </View>
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView >
-  );
-}
+          </>
+        )}
 
-function FavoritesScreen({ navigation }) {
-  const { favorites } = useContext(FavoritesContext);
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.headerGradient}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerSubtitle}>Your Collection</Text>
-            <Text style={styles.headerTitle}>Favourites ❤️</Text>
+        {/* Hero Banner */}
+        <View style={[styles.subHeroBanner, { backgroundColor: C.primary }]}>
+          <View style={styles.subHeroContent}>
+            <Crown size={36} color="rgba(255,255,255,0.9)" fill="rgba(255,255,255,0.15)" />
+            <AppText variant="bold" style={{ color: 'white', fontSize: 22, marginTop: 12 }}>Unlock Pearl PRO</AppText>
+            <AppText style={{ color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginTop: 6, lineHeight: 20 }}>Get unlimited access to all AI prompts and categories</AppText>
           </View>
-        </View>
-      </View>
-
-      {favorites.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Heart color="#666" size={60} />
-          <Text style={styles.emptyText}>No favourites yet</Text>
-          <Text style={styles.emptySubtext}>Start saving your favorite prompts!</Text>
-        </View>
-      ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={styles.favGridContainer}>
-            {favorites.map((item) => (
-              <View key={item.id} style={styles.favGridCard}>
-                <TouchableOpacity
-                  style={styles.favCardTouchable}
-                  onPress={() => navigation.navigate('Details', { item })}
-                  activeOpacity={0.9}
-                >
-                  <Image source={{ uri: item.imageUrl }} style={styles.favGridImage} />
-                  <View style={styles.favCardOverlay}>
-                    <View style={styles.favCardContent}>
-                      <Text style={styles.favCardTitle} numberOfLines={2}>{item.title}</Text>
-                      <View style={styles.favCardTag}>
-                        <Text style={styles.favCardTagText}>{item.style || 'Art'}</Text>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
+          <View style={styles.subFeaturePills}>
+            {['All Categories', 'No Limits', 'New Daily'].map(f => (
+              <View key={f} style={styles.featurePill}>
+                <Zap size={12} color="white" />
+                <AppText variant="semibold" style={{ color: 'white', fontSize: 11, marginLeft: 4 }}>{f}</AppText>
               </View>
             ))}
           </View>
-          <View style={{ height: 40 }} />
+        </View>
 
-          {/* Ad at Bottom of Favorites */}
-          <SmartAd unitId={BANNER_AD_ID} size={BannerAdSize.MEDIUM_RECTANGLE} containerStyle={{ alignItems: 'center', paddingBottom: 20 }} />
-        </ScrollView>
-      )}
-    </SafeAreaView>
-  );
-}
-
-// Settings Screens (keeping them minimal and modern)
-function PrivacyScreen() {
-  const navigation = useNavigation();
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.settingsHeader}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <View style={styles.backBtnCircle}>
-            <ChevronLeft color="white" size={24} />
+        {/* 24h Premium Pass */}
+        <AppText variant="semibold" style={{ color: C.subText, fontSize: 11, letterSpacing: 1, marginBottom: 10, marginTop: 20 }}>QUICK ACCESS</AppText>
+        <TouchableOpacity
+          style={[styles.passCard, { backgroundColor: C.card, borderColor: hasPass ? C.success : C.coin }]}
+          onPress={buyPremiumPass}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.passIconBox, { backgroundColor: hasPass ? C.success + '18' : C.coin + '18' }]}>
+            <Zap size={24} color={hasPass ? C.success : C.coin} fill={hasPass ? C.success : C.coin} />
           </View>
-        </TouchableOpacity>
-        <Text style={styles.settingsHeaderTitle}>Privacy Policy</Text>
-      </View>
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <Text style={styles.settingsText}>
-          Last updated: February 2, 2026{"\n\n"}
-          1. Introduction{"\n"}Welcome to AI Photo Prompt - Pearl. We respect your privacy.{"\n\n"}
-          2. Data Collection{"\n"}We use Google AdMob and Analytics for app performance.{"\n\n"}
-          3. Local Storage{"\n"}Your favorites are stored locally on your device.{"\n\n"}
-          4. Contact{"\n"}Email: pearlproduction9@gmail.com
-        </Text>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function HowToUseScreen() {
-  const navigation = useNavigation();
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.settingsHeader}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <View style={styles.backBtnCircle}>
-            <ChevronLeft color="white" size={24} />
+          <View style={{ flex: 1 }}>
+            <AppText variant="bold" style={{ color: C.text, fontSize: 16 }}>24h Premium Pass</AppText>
+            <AppText style={{ color: C.subText, fontSize: 12, marginTop: 3 }}>10 free unlocks · 25 coins/prompt after</AppText>
+            {hasPass && <AppText variant="bold" style={{ color: C.success, fontSize: 11, marginTop: 4 }}>✅ ACTIVE NOW</AppText>}
           </View>
-        </TouchableOpacity>
-        <Text style={styles.settingsHeaderTitle}>How to Use</Text>
-      </View>
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <Text style={styles.stepTitle}>1. Browse Styles</Text>
-        <Text style={styles.stepText}>Explore Men or Women categories{"\n"}</Text>
-        <Text style={styles.stepTitle}>2. Unlock Prompt</Text>
-        <Text style={styles.stepText}>Tap image and unlock the AI prompt{"\n"}</Text>
-        <Text style={styles.stepTitle}>3. Copy & Create</Text>
-        <Text style={styles.stepText}>Use in ChatGPT, Midjourney, or Gemini{"\n"}</Text>
-        <Text style={styles.stepTitle}>4. Customize</Text>
-        <Text style={styles.stepText}>Modify the prompt to your needs</Text>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function VersionScreen() {
-  const navigation = useNavigation();
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.settingsHeader}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <View style={styles.backBtnCircle}>
-            <ChevronLeft color="white" size={24} />
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.settingsHeaderTitle}>App Info</Text>
-      </View>
-      <ScrollView contentContainerStyle={{ padding: 20, alignItems: 'center' }}>
-        <Sparkles color="#FF6B9D" size={60} />
-        <Text style={styles.appName}>Pearl AI</Text>
-        <Text style={styles.appVersion}>Version 3.1</Text>
-        <Text style={styles.appDescription}>
-          Curated AI prompts for creators, designers, and enthusiasts. Get high-quality results from Midjourney, Stable Diffusion & more.
-        </Text>
-        <Text style={styles.appContact}>Contact: pearlproduction9@gmail.com</Text>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function SettingsListScreen() {
-  const navigation = useNavigation();
-  const menuItems = [
-    { title: 'Privacy Policy', icon: Shield, screen: 'Privacy', color: '#00D9FF' },
-    { title: 'How to Use', icon: HelpCircle, screen: 'HowToUse', color: '#FF6B9D' },
-    { title: 'App Info', icon: Info, screen: 'Version', color: '#9D00FF' },
-  ];
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.settingsHeader}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <View style={styles.backBtnCircle}>
-            <ChevronLeft color="white" size={24} />
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.settingsHeaderTitle}>Settings</Text>
-      </View>
-      <View style={{ padding: 20 }}>
-        {menuItems.map((item, index) => (
-          <TouchableOpacity key={index} style={styles.settingsItem} onPress={() => navigation.navigate(item.screen)}>
-            <View style={styles.settingsItemLeft}>
-              <View style={[styles.settingsIcon, { backgroundColor: item.color + '20' }]}>
-                <item.icon color={item.color} size={22} />
-              </View>
-              <Text style={styles.settingsItemText}>{item.title}</Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Coins size={14} color={C.coin} />
+              <AppText variant="bold" style={{ color: C.coin, fontSize: 18, marginLeft: 4 }}>250</AppText>
             </View>
-            <ChevronLeft color="#666" size={20} style={{ transform: [{ rotate: '180deg' }] }} />
+            <AppText style={{ color: C.subText, fontSize: 10, marginTop: 2 }}>1 Day</AppText>
+          </View>
+        </TouchableOpacity>
+
+        {/* Plans */}
+        <AppText variant="semibold" style={{ color: C.subText, fontSize: 11, letterSpacing: 1, marginBottom: 10, marginTop: 20 }}>SUBSCRIPTION PLANS</AppText>
+        {plans.map((p, i) => (
+          <TouchableOpacity
+            key={i}
+            style={[styles.planCardNew, {
+              backgroundColor: C.card,
+              borderColor: p.popular ? C.primary : C.border,
+              borderWidth: p.popular ? 2 : 1,
+            }]}
+            onPress={() => handlePurchase(p)}
+            activeOpacity={0.85}
+          >
+            {p.popular && (
+              <View style={[styles.popularBadge, { backgroundColor: C.primary }]}>
+                <AppText variant="bold" style={{ color: 'white', fontSize: 10 }}>⭐ POPULAR</AppText>
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <AppText variant="bold" style={{ color: C.text, fontSize: 16 }}>{p.title}</AppText>
+              <AppText style={{ color: C.subText, fontSize: 12, marginTop: 3 }}>{p.desc}</AppText>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Coins size={16} color={C.coin} />
+                <AppText variant="bold" style={{ color: C.text, fontSize: 22, marginLeft: 5 }}>{p.price}</AppText>
+              </View>
+              <AppText style={{ color: C.subText, fontSize: 11, marginTop: 2 }}>{p.days} days</AppText>
+            </View>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-// --- Navigation ---
+function DetailsScreen({ route, navigation }) {
+  const { item } = route.params;
+  const { theme, userData, updateUserData, hasSubscription, showAlert } = useContext(UserContext);
+  const hasPass = userData.premiumPassExpiry > Date.now();
+  const isUnlocked = userData.unlockedIds.includes(item.id) || hasSubscription;
+  const isFav = userData.favorites.includes(item.id);
+  const [imgLoading, setImgLoading] = useState(true);
+  const [adLoaded, setAdLoaded] = useState(false);
+
+  // Requirement: Interstitial after 3/4 detail views (on leave)
+  useEffect(() => {
+    const visits = (userData.detailVisits || 0) + 1;
+    updateUserData({ detailVisits: visits });
+
+    if (!interstitialAd.loaded) interstitialAd.load();
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (visits % 3 === 0 && interstitialAd.loaded) {
+        interstitialAd.show();
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleUnlock = () => {
+    const isPremium = item.tier === 'premium' || item.isPremium;
+
+    if (isPremium && !hasSubscription && !hasPass) {
+      showAlert('👑 Premium Access', 'Premium category requires PRO status or a 24-hour pass.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'See Plans', onPress: () => navigation.navigate('Subscription') }
+      ]);
+      return;
+    }
+
+    let cost = PROMPT_COST;
+    let newPassUnlocks = userData.premiumPassUnlocks || 0;
+
+    if (isPremium && hasPass) {
+      if ((userData.premiumPassUnlocks || 0) < 10) {
+        cost = 0;
+        newPassUnlocks += 1;
+      }
+    }
+
+    if (userData.coins < cost) {
+      showAlert('Insufficient Coins', `You need ${cost - userData.coins} more coins.`, [{ text: 'Get Coins', onPress: () => navigation.navigate('Spin') }, { text: 'Close', style: 'cancel' }], 'error');
+      return;
+    }
+
+    showAlert(
+      'Unlock Prompt?',
+      `Unlock this premium prompt for ${cost} coins?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unlock Now',
+          onPress: () => {
+            updateUserData({
+              coins: userData.coins - cost,
+              unlockedIds: [...userData.unlockedIds, item.id],
+              premiumPassUnlocks: newPassUnlocks
+            });
+
+            if (cost === 0) {
+              showAlert('Free Unlock!', `Premium Pass used. ${10 - newPassUnlocks} free premium unlocks remaining!`, [{ text: 'Sweet!' }], 'success');
+            } else {
+              showAlert('Unlocked!', 'Prompt unlocked successfully.', [{ text: 'Awesome' }], 'success');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const toggleFav = () => {
+    const newFavs = isFav ? userData.favorites.filter(id => id !== item.id) : [...userData.favorites, item.id];
+    updateUserData({ favorites: newFavs });
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+      <StatusBar style="light" />
+
+      {/* Scrollable Content */}
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false}>
+        <View style={styles.detailImageWrapper}>
+          {imgLoading && (
+            <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS[theme].border + '20', zIndex: 1 }]}>
+              <ActivityIndicator color={COLORS[theme].primary} size="large" />
+            </View>
+          )}
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.fullDetailImage}
+            resizeMode="cover"
+            onLoadStart={() => setImgLoading(true)}
+            onLoadEnd={() => setImgLoading(false)}
+          />
+
+          {/* Top Floating Buttons */}
+          <View style={[styles.floatingHeader, { paddingTop: 50 }]}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.floatingActionBtn, { backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }]}>
+              <ChevronLeft color="white" size={24} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={toggleFav} style={[styles.floatingActionBtn, { backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }]}>
+              <Heart color={isFav ? '#EF4444' : 'white'} fill={isFav ? '#EF4444' : 'transparent'} size={24} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Title Overlay on Image */}
+          <View style={styles.titleOverlay}>
+            <View style={{ padding: 24, width: '100%', paddingBottom: 30 }}>
+              <AppText variant="bold" style={styles.immersiveTitle}>{item.title}</AppText>
+            </View>
+          </View>
+        </View>
+
+        {/* Content Section */}
+        <View style={[styles.immersiveContent, { backgroundColor: COLORS[theme].background }]}>
+          {isUnlocked ? (
+            <View style={styles.unlockedContainer}>
+              <View style={[styles.promptCardInner, { backgroundColor: COLORS[theme].card }]}>
+                <AppText style={[styles.promptTextDisplay, { color: COLORS[theme].text }]}>{item.prompt}</AppText>
+              </View>
+              <TouchableOpacity
+                onPress={() => { Clipboard.setStringAsync(item.prompt); showAlert('Copied!', 'Prompt copied to clipboard.', [{ text: 'Done' }], 'success'); }}
+                style={[styles.actionBtnLarge, { backgroundColor: COLORS[theme].primary }]}
+              >
+                <Copy size={20} color="white" />
+                <AppText variant="bold" style={{ color: 'white', marginLeft: 10 }}>Copy Prompt</AppText>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.lockedContainer}>
+              <View style={[styles.lockNotice, { backgroundColor: COLORS[theme].card }]}>
+                <Lock size={24} color={COLORS[theme].subText} style={{ marginBottom: 10 }} />
+                <AppText style={{ color: COLORS[theme].subText, textAlign: 'center' }}>Unlock to see the full AI generation prompt</AppText>
+              </View>
+              <TouchableOpacity
+                onPress={handleUnlock}
+                style={[styles.actionBtnLarge, { backgroundColor: COLORS[theme].primary }]}
+              >
+                <Unlock size={20} color="white" />
+                <AppText variant="bold" style={{ color: 'white', marginLeft: 10 }}>UNLOCK PROMPT (25 COINS)</AppText>
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={{ height: 40 }} />
+        </View>
+      </ScrollView>
+
+      {/* Requirement: Details Screen Bottom Banner (Fixed) */}
+      <View style={{ width: '100%', alignItems: 'center', backgroundColor: COLORS[theme].background, paddingVertical: adLoaded ? 4 : 0, height: adLoaded ? 'auto' : 0, overflow: 'hidden' }}>
+        <BannerAd
+          unitId={AD_IDS.BANNER}
+          size={BannerAdSize.BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+          onAdLoaded={() => setAdLoaded(true)}
+          onAdFailedToLoad={() => setAdLoaded(false)}
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-function MenFeed(props) { return <FeedScreen {...props} category="Men" />; }
-function WomenFeed(props) { return <FeedScreen {...props} category="Women" />; }
-
 function TabNavigator() {
-  const insets = useSafeAreaInsets();
+  const { theme } = useContext(UserContext);
+  const C = COLORS[theme];
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#0a0a0a',
-          borderTopWidth: 0,
-          height: 70 + insets.bottom,
-          paddingBottom: insets.bottom + 10,
-          paddingTop: 10,
-          elevation: 0,
-        },
-        tabBarActiveTintColor: '#FF6B9D',
-        tabBarInactiveTintColor: '#666',
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
-        tabBarIcon: ({ color, size, focused }) => {
-          let IconComponent;
-          if (route.name === 'NewArrival') IconComponent = Zap;
-          if (route.name === 'Men') IconComponent = User;
-          if (route.name === 'Women') IconComponent = Sparkles;
-          if (route.name === 'Favourites') IconComponent = Heart;
-
-          return (
-            <View style={[styles.tabIcon, focused && styles.tabIconActive]}>
-              <IconComponent color={color} size={size} />
-            </View>
-          );
-        }
-      })}
-    >
-      <Tab.Screen name="NewArrival" component={NewArrivalScreen} options={{ tabBarLabel: 'New' }} />
-      <Tab.Screen name="Men" component={MenFeed} />
-      <Tab.Screen name="Women" component={WomenFeed} />
-      <Tab.Screen name="Favourites" component={FavoritesScreen} options={{ tabBarLabel: 'Saved' }} />
+    <Tab.Navigator screenOptions={({ route }) => ({
+      headerShown: false,
+      tabBarStyle: {
+        backgroundColor: C.card,
+        borderTopWidth: 0,
+        height: 68,
+        shadowColor: C.cardShadow,
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        elevation: 12,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+      },
+      tabBarActiveTintColor: C.primary,
+      tabBarInactiveTintColor: C.subText,
+      tabBarLabelStyle: { fontFamily: 'Outfit_600SemiBold', fontSize: 10, marginBottom: 8 },
+      tabBarIcon: ({ color, focused }) => {
+        const Icon = route.name === 'Home' ? Zap : route.name === 'New' ? Sparkles : route.name === 'Spin' ? TrendingUp : Heart;
+        return (
+          <View style={[
+            focused && { backgroundColor: C.primary + '18', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 6 }
+          ]}>
+            <Icon size={22} color={color} fill={focused ? color : 'none'} />
+          </View>
+        );
+      }
+    })}>
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="New" component={NewArrivalScreen} />
+      <Tab.Screen name="Spin" component={SpinScreen} />
+      <Tab.Screen name="Saved" component={FavoritesScreen} />
     </Tab.Navigator>
   );
 }
 
-function RootNavigator() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: '#0a0a0a' } }}>
-      <Stack.Screen name="Tabs" component={TabNavigator} />
-      <Stack.Screen name="Details" component={DetailsScreen} />
-      <Stack.Screen name="SettingsList" component={SettingsListScreen} />
-      <Stack.Screen name="Privacy" component={PrivacyScreen} />
-      <Stack.Screen name="HowToUse" component={HowToUseScreen} />
-      <Stack.Screen name="Version" component={VersionScreen} />
-    </Stack.Navigator>
-  );
-}
-
 export default function App() {
-  const [favorites, setFavorites] = useState([]);
-  const [appOpenAdLoaded, setAppOpenAdLoaded] = useState(false);
+  const [fontsLoaded] = useFonts({ Outfit_400Regular, Outfit_600SemiBold, Outfit_700Bold });
+  const [userData, setUserData] = useState({
+    name: 'Member',
+    coins: 120,
+    lastSpinTime: 0,
+    spinTickets: 0,
+    unlockedIds: [],
+    favorites: [],
+    premiumPassExpiry: 0,
+    premiumPassUnlocks: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    lastOpenDate: null,
+    vouchers: { dayPass: 0, weekPass: 0 },
+    subscription: { type: 'free', expiry: 0, purchasePrice: 0, totalDays: 0 },
+    detailVisits: 0
+  });
+  const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
-  const splashProgress = useRef(new Animated.Value(0)).current;
+  const [streakModal, setStreakModal] = useState(null); // { coins, streak, voucher }
+  const [restoreModal, setRestoreModal] = useState(null); // { savedStreak, lastDate }
+  const [customAlert, setCustomAlert] = useState(null); // { title, message, buttons, type }
 
-  const checkUpdate = async () => {
-    try {
-      const response = await fetch(CONFIG_URL);
-      const config = await response.json();
+  useEffect(() => {
+    load();
+    requestNotificationPermissions();
+    const timer = setTimeout(() => setShowSplash(false), 2500);
+    return () => clearTimeout(timer);
+  }, []);
 
-      const currentMajor = parseInt(CURRENT_VERSION.split('.')[0]);
-      const latestMajor = parseInt(config.latestVersion.split('.')[0]);
+  const requestNotificationPermissions = async () => {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    console.log("Notif Permission Status:", finalStatus);
+    if (finalStatus !== 'granted') {
+      showAlert('Notice', 'Notification permissions are required for spin reminders. Please enable them in settings.', [{ text: 'OK' }], 'info');
+    }
 
-      // Pop-up only if current version is below 3 (as requested)
-      // or if there is a major version jump
-      if (currentMajor < latestMajor || (currentMajor < 3 && latestMajor >= 3)) {
-        Alert.alert(
-          '🚀 Update Available!',
-          config.message || 'A new version of Pearl AI is available with fresh prompts and better performance.',
-          [
-            { text: 'Later', style: 'cancel' },
-            {
-              text: 'Update Now',
-              onPress: () => Linking.openURL(config.updateUrl),
-              style: 'default'
-            }
-          ]
-        );
-      }
-    } catch (error) {
-      console.log('Update check failed:', error);
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
     }
   };
 
-  // Check for App Updates
-  useEffect(() => {
-    // Tiny delay to let splash/ads settle
-    setTimeout(checkUpdate, 3000);
-  }, []);
+  const scheduleSpinNotification = async (lastSpinTime) => {
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      const triggerTime = lastSpinTime + FREE_SPIN_COOLDOWN;
+      const secondsLeft = Math.max(1, Math.floor((triggerTime - Date.now()) / 1000));
 
-  // Load favorites
-  useEffect(() => {
-    (async () => {
+      console.log("Scheduling notification in", secondsLeft, "seconds");
+
+      console.log("Scheduling notification in", secondsLeft, "seconds");
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'spin-reminder',
+        content: {
+          title: "🎰 Spin Ready!",
+          body: "Your free spin is ready! Come back and claim your rewards 🪙✨",
+          sound: "default",
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          color: '#5B4CDB',
+        },
+        trigger: {
+          type: 'timeInterval',
+          seconds: secondsLeft,
+          channelId: 'default',
+          repeats: false
+        },
+      });
+      console.log("Notification scheduled successfully!");
+    } catch (e) {
+      console.log("Notif Error:", e);
+      showAlert('Error', 'Failed to schedule notification.', [{ text: 'OK' }], 'error');
+    }
+  };
+
+  const getStreakReward = (streak) => {
+    if (streak > 60) return 40;
+    if (streak >= 30) return 30;
+    if (streak >= 15) return 20;
+    if (streak >= 5) return 15;
+    return 10;
+  };
+
+  const load = async () => {
+    try {
+      // Requirement: Check for updates
       try {
-        const stored = await AsyncStorage.getItem('userFavorites');
-        if (stored) setFavorites(JSON.parse(stored));
-      } catch (e) { }
-    })();
-  }, []);
+        const configRes = await fetch(CONFIG_URL);
+        const configData = await configRes.json();
+        const serverVersion = configData.version || '1.0.0';
+        const serverMajor = parseInt(serverVersion.split('.')[0]);
+        const currentMajor = parseInt(CURRENT_VERSION.split('.')[0]);
 
-  useEffect(() => {
-    AsyncStorage.setItem('userFavorites', JSON.stringify(favorites)).catch(() => { });
-  }, [favorites]);
-
-  // Load and show App Open Ad - ONCE ONLY
-  useEffect(() => {
-    let hasShown = false;
-
-    const unsubscribeLoaded = appOpenAd.addAdEventListener(AdEventType.LOADED, () => {
-      try {
-        if (!hasShown) {
-          hasShown = true;
-          setAppOpenAdLoaded(true);
-          appOpenAd.show();
+        if (currentMajor < serverMajor) {
+          showAlert('Update Available', 'A new version of AI Photo Prompt is available! Please update to get the latest features and security.', [
+            { text: 'Update Now', onPress: () => Linking.openURL('https://play.google.com/store/apps/details?id=com.dipak.pearlai') }
+          ], 'success');
         }
       } catch (e) {
-        console.log('AppOpenAd Show Error:', e);
+        console.log("Update Check Error:", e);
       }
+
+      const s = await AsyncStorage.getItem('p_data');
+      const today = new Date().toDateString();
+      if (s) {
+        const saved = JSON.parse(s);
+        const lastDate = saved.lastOpenDate;
+
+        if (lastDate === today) {
+          setUserData(saved);
+        } else {
+          const lastDateObj = new Date(lastDate);
+          const todayObj = new Date(today);
+          const diffTime = todayObj.getTime() - lastDateObj.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 1) {
+            // Success! Increment streak
+            const newStreak = (saved.currentStreak || 0) + 1;
+            processStreak(saved, newStreak, today);
+          } else if (diffDays <= 2 && saved.currentStreak > 1) {
+            // Within 48 hours & had a streak -> Offer Restore
+            setUserData(saved);
+            setRestoreModal({ savedStreak: saved.currentStreak, lastDate });
+          } else {
+            // Streak broken
+            processStreak(saved, 1, today);
+          }
+        }
+      } else {
+        processStreak(null, 1, today);
+      }
+    } catch (e) { console.log(e); } finally { setLoading(false); }
+  };
+
+  const processStreak = async (saved, newStreak, today) => {
+    const base = saved || {
+      name: 'Member', coins: 120, lastSpinTime: 0, spinTickets: 0,
+      unlockedIds: [], favorites: [], premiumPassExpiry: 0, premiumPassUnlocks: 0,
+      vouchers: { dayPass: 0, weekPass: 0 },
+      subscription: { type: 'free', expiry: 0, purchasePrice: 0, totalDays: 0 }
+    };
+
+    const rewardCoins = getStreakReward(newStreak);
+    let dayPassGain = 0;
+    let weekPassGain = 0;
+
+    if (newStreak === 31) dayPassGain = 1;
+    if (newStreak === 61) weekPassGain = 1;
+
+    const newVouchers = {
+      dayPass: (base.vouchers?.dayPass || 0) + dayPassGain,
+      weekPass: (base.vouchers?.weekPass || 0) + weekPassGain
+    };
+
+    const updated = {
+      ...base,
+      coins: (base.coins || 0) + rewardCoins,
+      currentStreak: newStreak,
+      longestStreak: Math.max(newStreak, base.longestStreak || 0),
+      lastOpenDate: today,
+      vouchers: newVouchers
+    };
+
+    setUserData(updated);
+    await AsyncStorage.setItem('p_data', JSON.stringify(updated));
+    setStreakModal({
+      coins: rewardCoins,
+      streak: newStreak,
+      voucher: dayPassGain ? '1 Day Premium Pass' : weekPassGain ? '7 Day Weekly Pass' : null
+    });
+  };
+
+  const handleRestoreStreak = async () => {
+    if (userData.coins < 100) {
+      showAlert('Not enough coins', 'You need 100 coins to restore your streak.', [{ text: 'Got it' }], 'error');
+      return;
+    }
+    const today = new Date().toDateString();
+    const newStreak = userData.currentStreak + 1;
+    const base = { ...userData, coins: userData.coins - 100 };
+    setRestoreModal(null);
+    await processStreak(base, newStreak, today);
+  };
+
+  const update = async (d) => {
+    const n = { ...userData, ...d };
+    setUserData(n);
+    await AsyncStorage.setItem('p_data', JSON.stringify(n));
+    // If lastSpinTime was updated, reschedule notification
+    if (d.lastSpinTime) {
+      scheduleSpinNotification(d.lastSpinTime);
+    }
+  };
+
+  // Requirement: Handle Ads (App Open & Interstitial Auto-Reload)
+  useEffect(() => {
+    const unsubOpen = appOpenAd.addAdEventListener(AdEventType.LOADED, () => {
+      appOpenAd.show();
     });
 
-    const unsubscribeClosed = appOpenAd.addAdEventListener(AdEventType.CLOSED, () => {
-      setAppOpenAdLoaded(false);
-      // DO NOT RELOAD HERE
+    const unsubInt = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
+      interstitialAd.load(); // Reload for next time
     });
 
     appOpenAd.load();
-
-    // Start Checking Update in background immediately
-    checkUpdate();
-
-    // Splash Screen Timer (4 seconds)
-    Animated.timing(splashProgress, {
-      toValue: 1,
-      duration: 4000,
-      useNativeDriver: false,
-    }).start();
-
-    const splashTimer = setTimeout(() => {
-      setShowSplash(false);
-    }, 4000);
+    interstitialAd.load();
 
     return () => {
-      unsubscribeLoaded();
-      unsubscribeClosed();
-      clearTimeout(splashTimer);
+      unsubOpen();
+      unsubInt();
     };
   }, []);
 
-  if (showSplash) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' }}>
-        <StatusBar style="light" />
-        <View style={{ alignItems: 'center', gap: 20 }}>
-          {/* Splash Image removed temporarily due to build error with file format */}
-          <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FF6B9D' }}>Pearl AI</Text>
-          <View style={{ width: 200, height: 4, backgroundColor: '#222', borderRadius: 2, overflow: 'hidden', marginTop: 10 }}>
-            <Animated.View
-              style={{
-                height: '100%',
-                backgroundColor: '#FF6B9D',
-                width: splashProgress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%']
-                })
-              }}
-            />
-          </View>
-        </View>
-      </View>
-    );
-  }
+  const showAlert = (title, message, buttons = [{ text: 'OK' }], type = 'info') => {
+    setCustomAlert({ title, message, buttons, type });
+  };
+
+  if (!fontsLoaded || loading) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <FavoritesContext.Provider value={{ favorites, setFavorites }}>
+      <UserContext.Provider value={{
+        theme: 'light',
+        userData,
+        updateUserData: update,
+        showAlert,
+        hasSubscription: userData.subscription.expiry > Date.now(),
+        updateSubscription: (days, price) => update({
+          subscription: {
+            type: 'pro',
+            expiry: Date.now() + days * 24 * 60 * 60 * 1000,
+            purchasePrice: price,
+            totalDays: days
+          }
+        })
+      }}>
+        <SafeAreaProvider>
           <NavigationContainer>
-            <StatusBar style="light" />
-            <RootNavigator />
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="T" component={TabNavigator} />
+              <Stack.Screen name="Details" component={DetailsScreen} />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
+              <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+              <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+            </Stack.Navigator>
           </NavigationContainer>
-        </FavoritesContext.Provider>
-      </SafeAreaProvider>
+        </SafeAreaProvider>
+
+        {/* 🔥 Daily Streak Reward Modal */}
+        <Modal visible={!!streakModal} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.streakModalCard}>
+              <StreakModalContent
+                streak={streakModal?.streak || 1}
+                coins={streakModal?.coins || 10}
+                voucher={streakModal?.voucher}
+                onClose={() => setStreakModal(null)}
+              />
+            </View>
+          </View>
+        </Modal>
+
+        {/* 🛠 Restore Streak Modal */}
+        <Modal visible={!!restoreModal} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.restoreModalCard}>
+              <AppText style={{ fontSize: 64 }}>💔</AppText>
+              <AppText variant="bold" style={{ fontSize: 24, color: '#1A1033', marginTop: 10 }}>Streak Broken!</AppText>
+              <AppText style={{ color: '#6B7280', textAlign: 'center', marginTop: 8 }}>
+                You missed a day! You were on a <AppText variant="bold" style={{ color: '#EF4444' }}>{restoreModal?.savedStreak} day streak</AppText>.
+              </AppText>
+
+              <View style={[styles.restoreOption, { backgroundColor: '#F0F2FF' }]}>
+                <Coins size={24} color="#F59E0B" />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <AppText variant="bold" style={{ fontSize: 16 }}>Restore Streak</AppText>
+                  <AppText style={{ fontSize: 12, color: '#6B7280' }}>Pay 100 coins to continue your fire!</AppText>
+                </View>
+                <TouchableOpacity
+                  onPress={handleRestoreStreak}
+                  style={[styles.restoreBtn, { backgroundColor: '#5B4CDB' }]}
+                >
+                  <AppText variant="bold" style={{ color: 'white' }}>100 🪙</AppText>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => {
+                  const today = new Date().toDateString();
+                  processStreak(userData, 1, today);
+                  setRestoreModal(null);
+                }}
+                style={{ marginTop: 20 }}
+              >
+                <AppText style={{ color: '#9CA3AF', variant: 'semibold' }}>No, start fresh</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* 📋 Custom Stylish Alert Modal */}
+        <Modal visible={!!customAlert} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.alertCard}>
+              <View style={[styles.alertIconBox, { backgroundColor: customAlert?.type === 'success' ? '#10B98120' : customAlert?.type === 'error' ? '#EF444420' : '#5B4CDB20' }]}>
+                {customAlert?.type === 'success' ? <Sparkles color="#10B981" /> : customAlert?.type === 'error' ? <ShieldAlert color="#EF4444" /> : <Zap color="#5B4CDB" />}
+              </View>
+              <AppText variant="bold" style={{ fontSize: 22, marginTop: 16 }}>{customAlert?.title}</AppText>
+              <AppText style={{ color: '#6B7280', textAlign: 'center', marginTop: 8, fontSize: 14 }}>{customAlert?.message}</AppText>
+
+              <View style={{ width: '100%', marginTop: 24, gap: 10 }}>
+                {customAlert?.buttons?.map((btn, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => {
+                      setCustomAlert(null);
+                      btn.onPress && btn.onPress();
+                    }}
+                    style={[
+                      styles.alertBtn,
+                      { backgroundColor: btn.style === 'cancel' ? '#F3F4F6' : '#5B4CDB' }
+                    ]}
+                  >
+                    <AppText variant="bold" style={{ color: btn.style === 'cancel' ? '#6B7280' : 'white' }}>{btn.text}</AppText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* 🚀 Premium Animated Splash Screen */}
+        {showSplash && (
+          <View style={styles.splashOverlay}>
+            <Animated.View style={{ alignItems: 'center' }}>
+              <View style={styles.splashLogoBox}>
+                <Sparkles size={60} color="#5B4CDB" />
+              </View>
+              <AppText variant="bold" style={{ color: '#1A1033', fontSize: 42, marginTop: 24, letterSpacing: 2 }}>AI PHOTO PROMPT</AppText>
+              <AppText style={{ color: '#6B7280', fontSize: 13, letterSpacing: 5, marginTop: 5 }}>AI POWERED PROMPT STUDIO</AppText>
+              <View style={{ marginTop: 60 }}>
+                <ActivityIndicator color="#5B4CDB" size="large" />
+              </View>
+            </Animated.View>
+          </View>
+        )}
+
+      </UserContext.Provider>
     </GestureHandlerRootView>
   );
 }
 
+function StreakModalContent({ streak, coins, voucher, onClose }) {
+  const scaleAnim = useRef(new Animated.Value(0.5)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const coinAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 80, friction: 6 }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+    ]).start();
+    setTimeout(() => {
+      Animated.spring(coinAnim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 5 }).start();
+    }, 400);
+  }, []);
+
+  const milestones = [5, 15, 30, 31, 60, 61];
+  const nextMilestone = milestones.find(m => m > streak) || 100;
+  const daysLeft = nextMilestone - streak;
+
+  const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const todayDow = (new Date().getDay() + 6) % 7;
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: opacityAnim, alignItems: 'center' }}>
+      <AppText style={{ fontSize: 64 }}>🔥</AppText>
+      <AppText variant="bold" style={{ fontSize: 26, color: '#1A1033', marginTop: 8 }}>
+        {streak} Day Streak!
+      </AppText>
+      <AppText style={{ color: '#6B7280', fontSize: 14, marginTop: 4, textAlign: 'center' }}>
+        Keep it up! Your fire is growing stronger.
+      </AppText>
+
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
+        {DAYS.map((d, i) => {
+          const active = i <= todayDow;
+          return (
+            <View key={i} style={[
+              styles.streakDot,
+              { backgroundColor: active ? '#F59E0B' : '#E4E4F7' },
+            ]}>
+              <AppText variant="bold" style={{ fontSize: 9, color: active ? 'white' : '#9CA3AF' }}>{d}</AppText>
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={{ width: '100%', alignItems: 'center' }}>
+        <Animated.View style={[
+          styles.streakCoinBox,
+          { transform: [{ scale: coinAnim }] }
+        ]}>
+          <Coins size={22} color="#F59E0B" fill="#F59E0B" />
+          <AppText variant="bold" style={{ color: '#D97706', fontSize: 24, marginLeft: 8 }}>+{coins} Coins</AppText>
+        </Animated.View>
+
+        {voucher && (
+          <Animated.View style={[
+            styles.streakVoucherBox,
+            { transform: [{ scale: coinAnim }], backgroundColor: '#EEF2FF', marginTop: 12 }
+          ]}>
+            <Crown size={20} color="#5B4CDB" />
+            <AppText variant="bold" style={{ color: '#5B4CDB', fontSize: 15, marginLeft: 10 }}>Bonus: {voucher}</AppText>
+          </Animated.View>
+        )}
+      </View>
+
+      {daysLeft > 0 && (
+        <AppText style={{ color: '#6B7280', fontSize: 12, marginTop: 15, textAlign: 'center' }}>
+          {daysLeft} day{daysLeft > 1 ? 's' : ''} to next reward 🎁
+        </AppText>
+      )}
+
+      <TouchableOpacity
+        onPress={onClose}
+        style={styles.streakClaimBtn}
+        activeOpacity={0.85}
+      >
+        <AppText variant="bold" style={{ color: 'white', fontSize: 16 }}>Awesome! 🎉</AppText>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+const menuLabel = {};
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0a' },
+  // Core Layout
+  container: { flex: 1 },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  // Header Styles
-  headerGradient: { paddingBottom: 20, backgroundColor: '#0a0a0a' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 },
-  headerSubtitle: { fontSize: 14, color: '#888', fontWeight: '500', marginBottom: 4 },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: 'white', letterSpacing: -0.5 },
-  settingsBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' },
+  // Top Bar
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+  profileIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  appTitle: { fontSize: 24, letterSpacing: 0.5 },
 
-  // Search
-  searchContainer: { paddingHorizontal: 20, marginTop: 20 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a1a1a', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: '#222' },
-  searchIcon: { fontSize: 18, marginRight: 10 },
-  searchInput: { flex: 1, color: 'white', fontSize: 15 },
+  // Coin Badge
+  coinBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
+  coinAmount: { fontSize: 15, marginLeft: 6, color: '#D97706' },
 
-  // Section
-  section: { marginTop: 30 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 16 },
-  sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBadge: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: 'white' },
-  trendingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
-  trendingText: { fontSize: 11, fontWeight: '600' },
+  // Categories
+  categoryContainer: { flexDirection: 'row', gap: 10, marginBottom: 12, paddingTop: 4 },
+  categoryBtn: { flex: 1, paddingVertical: 11, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  categoryText: { fontSize: 12, letterSpacing: 0.5 },
 
-  // Horizontal Scroll
-  horizontalScroll: { paddingLeft: 20, paddingRight: 10 },
-  horizontalCard: { marginRight: 16 },
-
-  // Grid
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingTop: 20 },
-  gridCard: { width: '48%', marginHorizontal: '1%', marginBottom: 16 },
-
-  // Gradient Card
-  gradientCard: { borderRadius: 20, overflow: 'hidden', backgroundColor: '#1a1a1a' },
-  cardImageContainer: { position: 'relative', width: width * 0.42, height: width * 0.56 },
+  // Cards
+  listContent: { padding: 10, paddingBottom: 100 },
+  card: { width: (width - 40) / 2, margin: 5, borderRadius: 22, overflow: 'hidden' },
+  cardImageContainer: { height: 210, position: 'relative' },
   cardImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  cardGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%', backgroundColor: 'rgba(0,0,0,0.6)' },
-  imagePlaceholder: { backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' },
-  cardContent: { padding: 12 },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: 'white', marginBottom: 8 },
-  cardTag: { alignSelf: 'flex-start', backgroundColor: '#FF6B9D20', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  cardTagText: { fontSize: 11, color: '#FF6B9D', fontWeight: '600' },
+  cardImageGradient: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, backgroundColor: 'transparent',
+    // Simulated bottom fade
+  },
+  lockPill: { position: 'absolute', bottom: 8, left: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.65)', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 10 },
+  lockOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
+  lockBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: 6, borderRadius: 10 },
+  lockText: { color: 'white', fontSize: 10, marginLeft: 5 },
+  premiumBadge: { position: 'absolute', top: 10, right: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  premiumBadgeText: { color: 'white', fontSize: 9, marginLeft: 3 },
+  newBadge: { position: 'absolute', top: 10, left: 10, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  newBadgeText: { color: 'white', fontSize: 9 },
+  cardInfo: { paddingHorizontal: 12, paddingVertical: 10 },
+  cardTitle: { fontSize: 13, marginBottom: 2 },
+  cardTag: { fontSize: 11 },
 
-  // Load More
-  loadMoreBtn: { marginHorizontal: 20, marginTop: 20, borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
-  loadMoreGradient: { paddingVertical: 16, alignItems: 'center' },
-  loadMoreText: { fontSize: 16, fontWeight: 'bold' },
+  // Spin Screen
+  mainHeading: { fontSize: 28, marginVertical: 16, letterSpacing: 0.5 },
+  spinBtn: { padding: 18, borderRadius: 20, alignItems: 'center' },
 
-  // Loading & Empty
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: '#666', marginTop: 12, fontSize: 14 },
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 },
-  emptyText: { color: '#888', fontSize: 18, fontWeight: '600', marginTop: 16 },
-  emptySubtext: { color: '#666', fontSize: 14, marginTop: 8 },
+  // Navigation & Misc
+  header: { padding: 18, paddingBottom: 8 },
+  headerTitle: { fontSize: 24 },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', height: 400 },
+  settingsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+  settingsHeaderTitle: { fontSize: 20 },
 
-  // Detail Screen
-  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 },
-  backBtn: { zIndex: 10 },
-  backBtnCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1a1a1a80', justifyContent: 'center', alignItems: 'center' },
-  favBtn: { zIndex: 10 },
-  favBtnCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1a1a1a80', justifyContent: 'center', alignItems: 'center' },
-  favBtnActive: { backgroundColor: '#FF6B9D20' },
-  detailImage: { width: '100%', borderRadius: 0 },
-  detailContent: { padding: 20 },
-  detailTagRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  detailTag: { backgroundColor: '#FF6B9D20', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
-  detailTagText: { color: '#FF6B9D', fontSize: 13, fontWeight: '600' },
-  categoryBadge: { backgroundColor: '#00D9FF20', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
-  categoryBadgeText: { color: '#00D9FF', fontSize: 13, fontWeight: '600' },
-  detailTitle: { fontSize: 26, fontWeight: 'bold', color: 'white', marginBottom: 24, lineHeight: 32 },
+  // Profile
+  profileCard: {
+    padding: 30, borderRadius: 28, alignItems: 'center', marginBottom: 20,
+    shadowColor: '#5B4CDB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.10, shadowRadius: 20, elevation: 8,
+  },
+  profileName: { fontSize: 22, marginTop: 8 },
+  avatar: { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  menuList: { gap: 10 },
+  menuItem: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 18,
+    shadowColor: '#5B4CDB', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+  },
+  menuLeft: { flexDirection: 'row', alignItems: 'center' },
+  menuIcon: { width: 40, height: 40, borderRadius: 13, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  menuLabel: { fontSize: 15 },
 
-  // Prompt
-  promptContainer: { marginTop: 10 },
-  promptBox: { borderRadius: 20, padding: 20, borderWidth: 1, borderColor: '#222', backgroundColor: '#1a1a1a' },
-  promptLabel: { fontSize: 12, color: '#888', fontWeight: '600', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
-  promptText: { fontSize: 15, color: '#ddd', lineHeight: 24 },
+  // Screen Headers
+  screenHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 },
+  screenHeaderTitle: { fontSize: 26 },
+  screenHeaderBadge: { width: 46, height: 46, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  navHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  navBackBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  navHeaderTitle: { fontSize: 18, letterSpacing: 0.3 },
 
-  // Actions
-  actionButtons: { flexDirection: 'row', gap: 12, marginTop: 20 },
-  actionBtn: { flex: 1, borderRadius: 16, overflow: 'hidden' },
-  actionBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
-  actionBtnText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  // Profile Hero
+  profileHeroCard: {
+    borderRadius: 28, padding: 28, alignItems: 'center', marginBottom: 20,
+    shadowColor: '#5B4CDB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 8
+  },
+  profileAvatarRing: { width: 90, height: 90, borderRadius: 45, borderWidth: 2.5, padding: 4, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+  profileAvatarInner: { width: '100%', height: '100%', borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
+  proBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginBottom: 8 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
+  editChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginTop: 24, width: '100%' },
+  statItem: { alignItems: 'center', flex: 1 },
+  statValue: { fontSize: 22 },
+  statLabel: { fontSize: 11, marginTop: 3 },
+  statDivider: { width: 1, height: 36, borderRadius: 1 },
 
-  // Unlock
-  unlockBtn: { marginTop: 20, borderRadius: 16, overflow: 'hidden' },
-  unlockBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18 },
-  unlockBtnText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  // Premium Menu
+  premiumMenuItem: {
+    flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, gap: 14,
+    shadowColor: '#5B4CDB', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3
+  },
+  menuIconBox: { width: 46, height: 46, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  activeTag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
 
-  // Progress Bar
-  progressContainer: { marginTop: 16, alignItems: 'center' },
-  progressBar: { width: '100%', height: 6, backgroundColor: '#333', borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#00D9FF', borderRadius: 3 },
-  progressText: { color: '#888', fontSize: 12, marginTop: 8, fontWeight: '500' },
+  // Subscription
+  subHeroBanner: { borderRadius: 28, padding: 28 },
+  subHeroContent: { alignItems: 'center' },
+  subFeaturePills: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginTop: 18, flexWrap: 'wrap' },
+  featurePill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  passCard: {
+    flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 22, borderWidth: 1.5, gap: 14,
+    shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 5
+  },
+  passIconBox: { width: 52, height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  planCardNew: {
+    flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 22, marginBottom: 12, gap: 14,
+    shadowColor: '#5B4CDB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 5
+  },
+  planCard: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderRadius: 22, marginBottom: 12, borderWidth: 2,
+    shadowColor: '#5B4CDB', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.10, shadowRadius: 14, elevation: 6,
+  },
+  popularBadge: { position: 'absolute', top: -12, right: 20, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12 },
+  nameInput: { fontSize: 20, fontWeight: 'bold', borderBottomWidth: 2, minWidth: 160, textAlign: 'center', padding: 5, marginBottom: 5 },
+  nameBtn: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 12 },
 
-  // Favorites - New Grid Layout
-  favGridContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingTop: 20 },
-  favGridCard: { width: '48%', marginHorizontal: '1%', marginBottom: 16 },
-  favCardTouchable: { borderRadius: 20, overflow: 'hidden', backgroundColor: '#1a1a1a' },
-  favGridImage: { width: '100%', height: width * 0.56, resizeMode: 'cover' },
-  favCardOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.7)', padding: 12 },
-  favCardContent: { gap: 8 },
-  favCardTitle: { fontSize: 14, fontWeight: 'bold', color: 'white', lineHeight: 18 },
-  favCardTag: { alignSelf: 'flex-start', backgroundColor: '#FF6B9D20', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  favCardTagText: { fontSize: 11, color: '#FF6B9D', fontWeight: '600' },
-  // Settings
-  settingsHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 16, borderBottomWidth: 1, borderBottomColor: '#1a1a1a' },
-  settingsHeaderTitle: { fontSize: 20, fontWeight: 'bold', color: 'white' },
-  settingsItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1a1a1a', padding: 16, borderRadius: 16, marginBottom: 12 },
-  settingsItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  settingsIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  settingsItemText: { fontSize: 16, color: 'white', fontWeight: '500' },
-  settingsText: { color: '#ccc', fontSize: 15, lineHeight: 24 },
-  stepTitle: { fontSize: 18, fontWeight: 'bold', color: '#FF6B9D', marginBottom: 8, marginTop: 16 },
-  stepText: { fontSize: 15, color: '#ccc', lineHeight: 22 },
-  appName: { fontSize: 28, fontWeight: 'bold', color: 'white', marginTop: 20 },
-  appVersion: { fontSize: 14, color: '#666', marginTop: 4, marginBottom: 24 },
-  appDescription: { fontSize: 15, color: '#ccc', textAlign: 'center', lineHeight: 24, marginBottom: 24 },
-  appContact: { fontSize: 14, color: '#888' },
+  // Immersive Details
+  detailImageWrapper: { height: height * 0.62, position: 'relative' },
+  fullDetailImage: { width: '100%', height: '100%' },
+  floatingHeader: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, zIndex: 100 },
+  floatingActionBtn: { width: 46, height: 46, borderRadius: 23, overflow: 'hidden' },
+  blurWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  titleOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 170, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  immersiveTitle: { color: 'white', fontSize: 26, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
+  immersiveStyle: { color: 'rgba(255,255,255,0.75)', fontSize: 15, marginTop: 5 },
+  immersiveContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, marginTop: -30, paddingHorizontal: 20, paddingTop: 30 },
+  unlockedContainer: { width: '100%' },
+  promptCardInner: { padding: 24, borderRadius: 24, marginBottom: 20, borderWidth: 1 },
+  promptTextDisplay: { fontSize: 16, lineHeight: 26 },
+  actionBtnLarge: { width: '100%', padding: 20, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 10 },
+  lockedContainer: { width: '100%', alignItems: 'center' },
+  lockNotice: { width: '100%', padding: 28, borderRadius: 24, alignItems: 'center', marginBottom: 20, borderStyle: 'dashed', borderWidth: 1.5 },
 
-  // Tab Bar
-  tabIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  tabIconActive: { backgroundColor: '#FF6B9D15' },
+  // ── Streak ────────────────────────────────────
+  streakCard: {
+    borderRadius: 24, padding: 20, marginBottom: 16, borderWidth: 1.5,
+    shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 5
+  },
+  streakBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14 },
+  streakDayPill: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center', borderWidth: 2 },
+
+  // ── Streak Modal ──────────────────────────────
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  streakModalCard: {
+    backgroundColor: 'white', borderRadius: 32, padding: 32, width: '100%', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.25, shadowRadius: 32, elevation: 20
+  },
+  streakDot: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  streakCoinBox: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF7ED', borderRadius: 20, paddingHorizontal: 24, paddingVertical: 14, marginTop: 20,
+    shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12, elevation: 6
+  },
+  streakClaimBtn: {
+    backgroundColor: '#5B4CDB', borderRadius: 20, paddingHorizontal: 42, paddingVertical: 16, marginTop: 24,
+    shadowColor: '#5B4CDB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 10
+  },
+  streakVoucherBox: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 16, width: '100%', justifyContent: 'center' },
+
+  // ── Restore ───────────────────────────────────
+  restoreModalCard: { backgroundColor: 'white', borderRadius: 32, padding: 32, width: '90%', alignItems: 'center' },
+  restoreOption: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, marginTop: 20, width: '100%', borderStyle: 'solid', borderWidth: 1, borderColor: '#E4E4F7' },
+  restoreBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+
+  // ── Roadmap ───────────────────────────────────
+  rewardMilestoneCard: { width: 90, padding: 12, borderRadius: 18, alignItems: 'center', borderStyle: 'solid', borderWidth: 1, borderColor: '#E4E4F7', marginRight: 10 },
+  voucherItem: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 20, borderStyle: 'solid', borderWidth: 1 },
+  voucherIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+
+  // ── Custom Alert ──────────────────────────────
+  alertCard: { backgroundColor: 'white', borderRadius: 28, padding: 32, width: '85%', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  alertIconBox: { width: 64, height: 64, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  alertBtn: { width: '100%', paddingVertical: 15, borderRadius: 14, alignItems: 'center' },
+
+  // ── Pagination ────────────────────────────────
+  loadMoreBtn: { paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, borderWidth: 2, backgroundColor: 'white' },
+
+  // ── Splash ───────────────────────────────────
+  splashOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F8FAFF', justifyContent: 'center', alignItems: 'center', zIndex: 9999 },
+  splashLogoBox: { width: 120, height: 120, borderRadius: 40, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#5B4CDB20', shadowColor: '#5B4CDB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 5 },
 });
+
+

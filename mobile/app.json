@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "AI Photo Prompt - Pearl",
+    "name": "AI Photo Prompt",
     "slug": "pearl-ai",
-    "version": "3.2.0",
+    "version": "4.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "backgroundColor": "#0a0a0a"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true
@@ -21,7 +21,7 @@
       "edgeToEdgeEnabled": true,
       "package": "com.dipak.pearlai",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 7,
+      "versionCode": 8,
       "permissions": [
         "com.google.android.gms.permission.AD_ID"
       ]
