@@ -598,6 +598,8 @@ function SpinScreen() {
   const [isSpinning, setIsSpinning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [adLoaded, setAdLoaded] = useState(false);
+  const [adPreparing, setAdPreparing] = useState(false);
+  const adProgress = useRef(new Animated.Value(0)).current;
   const rotation = useRef(new Animated.Value(0)).current;
   const currentAngle = useRef(0);
   const WHEEL_SIZE = 290;
@@ -626,6 +628,22 @@ function SpinScreen() {
       showAlert('Loading Ad', 'Ad is loading, please try again in a few seconds.', [{ text: 'OK' }], 'info');
       rewardedAd.load();
     }
+  };
+
+  const handleWatchAd = () => {
+    if (adPreparing) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setAdPreparing(true);
+    adProgress.setValue(0);
+
+    Animated.timing(adProgress, {
+      toValue: 1,
+      duration: 2200, // Roughly 2 seconds
+      useNativeDriver: false,
+    }).start(() => {
+      setAdPreparing(false);
+      watchRewardedAd();
+    });
   };
 
   // 6 rewards — shuffled for excitement
@@ -869,16 +887,34 @@ function SpinScreen() {
               paddingVertical: 14,
               borderRadius: 20,
               borderWidth: 1.5,
-              borderColor: COLORS[theme].border,
+              borderColor: adPreparing ? COLORS[theme].primary : COLORS[theme].border,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
+              overflow: 'hidden',
             }}
-            onPress={watchRewardedAd}
+            onPress={handleWatchAd}
+            disabled={adPreparing}
+            activeOpacity={0.7}
           >
-            <PlayCircle size={18} color={COLORS[theme].primary} />
+            {adPreparing && (
+              <Animated.View style={{
+                position: 'absolute',
+                left: 0, top: 0, bottom: 0,
+                backgroundColor: COLORS[theme].primary + '15',
+                width: adProgress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%']
+                })
+              }} />
+            )}
+            {adPreparing ? (
+              <ActivityIndicator size="small" color={COLORS[theme].primary} style={{ marginRight: 6 }} />
+            ) : (
+              <PlayCircle size={18} color={COLORS[theme].primary} />
+            )}
             <AppText variant="semibold" style={{ color: COLORS[theme].primary, marginLeft: 6, fontSize: 13 }}>
-              +1 Ticket
+              {adPreparing ? 'Preparing...' : '+1 Ticket'}
             </AppText>
           </TouchableOpacity>
         </View>
