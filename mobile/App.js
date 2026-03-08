@@ -1167,7 +1167,7 @@ function ProfileScreen({ navigation }) {
   const menuItems = [
     { label: 'Subscription Plans', desc: 'Upgrade to PRO', icon: Crown, screen: 'Subscription', color: C.premium },
     { label: 'Privacy Policy', desc: 'Terms & data usage', icon: Shield, screen: 'PrivacyPolicy', color: '#10B981' },
-    { label: 'Rate Us ⭐', desc: 'Love the app? Tell us!', icon: Star, color: '#F59E0B' },
+    { label: 'Rate Us ⭐', desc: 'Love the app? Tell us!', icon: Star, color: '#F59E0B', url: 'https://play.google.com/store/apps/details?id=com.dipak.pearlai&hl=en_IN' },
   ];
 
   return (
@@ -1316,7 +1316,13 @@ function ProfileScreen({ navigation }) {
               <TouchableOpacity
                 key={i}
                 style={[styles.premiumMenuItem, { backgroundColor: C.card }]}
-                onPress={() => it.screen && navigation.navigate(it.screen)}
+                onPress={() => {
+                  if (it.url) {
+                    Linking.openURL(it.url);
+                  } else if (it.screen) {
+                    navigation.navigate(it.screen);
+                  }
+                }}
                 activeOpacity={0.8}
               >
                 <View style={[styles.menuIconBox, { backgroundColor: it.color + '18' }]}>
