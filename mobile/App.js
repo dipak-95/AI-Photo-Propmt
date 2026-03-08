@@ -1588,6 +1588,7 @@ function SubscriptionScreen({ navigation }) {
 function DetailsScreen({ route, navigation }) {
   const { item } = route.params;
   const { theme, userData = {}, updateUserData, hasSubscription = false, showAlert } = useContext(UserContext);
+  const isPremium = item.tier === 'premium' || item.isPremium;
   const hasPass = (userData?.premiumPassExpiry || 0) > Date.now();
   const isUnlocked = (userData?.unlockedIds || []).includes(item.id) || hasSubscription;
   const isFav = userData.favorites.includes(item.id);
@@ -1609,7 +1610,6 @@ function DetailsScreen({ route, navigation }) {
   }, []);
 
   const handleUnlock = () => {
-    const isPremium = item.tier === 'premium' || item.isPremium;
 
     if (isPremium && !hasSubscription && !hasPass) {
       showAlert('👑 Premium Access', 'Premium category requires PRO status or a 24-hour pass.', [
