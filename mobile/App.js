@@ -324,7 +324,7 @@ const PromptCard = ({ item, isLocked, isPremium, onPress }) => {
             <View style={styles.lockPill}>
               <Lock size={10} color="white" />
               <AppText variant="bold" style={{ color: 'white', fontSize: 9, marginLeft: 3 }}>
-                {(hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 0)) || (userData?.streakVoucherUnlocks || 0) > 0)
+                {(hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 10)) || (userData?.streakVoucherUnlocks || 0) > 0)
                   ? 'FREE TO UNLOCK'
                   : '25 coins'}
               </AppText>
@@ -518,10 +518,10 @@ function HomeScreen({ navigation }) {
               marginLeft: 8
             }}>
               {hasSubscription ? 'UNLIMITED PRO ACCESS' :
-                (hasPass && (userData?.premiumPassLimit || 0) > 0) ?
-                  `${(userData?.premiumPassLimit || 0) - (userData?.premiumPassUnlocks || 0)} PROMPTS ARE FREE, THEN 25 COINS PER PROMPT` :
+                hasPass ?
+                  `${(userData?.premiumPassLimit || 10) - (userData?.premiumPassUnlocks || 0)} PROMPTS ARE FREE, THEN 25 COINS PER PROMPT` :
                   (userData?.streakVoucherUnlocks || 0) > 0 ?
-                    `${userData.streakVoucherUnlocks} STREAK UNLOCKS REMAINING, THEN 25 COINS EACH` :
+                    `${userData?.streakVoucherUnlocks} STREAK UNLOCKS REMAINING, THEN 25 COINS EACH` :
                     'PROMPT PRICE: 25 COINS'}
             </AppText>
           </View>
@@ -1710,7 +1710,7 @@ function DetailsScreen({ route, navigation }) {
               >
                 <Unlock size={20} color="white" />
                 <AppText variant="bold" style={{ color: 'white', marginLeft: 10 }}>
-                  {(hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 0)) || (userData?.streakVoucherUnlocks || 0) > 0)
+                  {(hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 10)) || (userData?.streakVoucherUnlocks || 0) > 0)
                     ? 'UNLOCK FOR FREE'
                     : `UNLOCK PROMPT (25 COINS)`}
                 </AppText>
@@ -1789,6 +1789,8 @@ export default function App() {
     favorites: [],
     premiumPassExpiry: 0,
     premiumPassUnlocks: 0,
+    premiumPassLimit: 0,
+    streakVoucherUnlocks: 0,
     currentStreak: 0,
     longestStreak: 0,
     lastOpenDate: null,
