@@ -47,8 +47,11 @@ export default function DashboardContent() {
     const filteredPrompts = prompts.filter(p =>
         (p.title.toLowerCase().includes(search.toLowerCase()) ||
             p.style.toLowerCase().includes(search.toLowerCase()) ||
-            p.keywords.some(k => k.toLowerCase().includes(search.toLowerCase()))) &&
-        (!category || (p.category === category) || (!p.category && category === 'Men')) // Default legacy docs to Men
+            p.keywords.some((k: string) => k.toLowerCase().includes(search.toLowerCase()))) &&
+        (!category ||
+            (category === 'Premium' ? (p.category === 'Premium' || p.tier === 'premium' || p.isPremium) :
+                category === 'Men' ? (!p.category || p.category === 'Men') :
+                    p.category === category))
     );
 
     return (
@@ -90,7 +93,7 @@ export default function DashboardContent() {
                 <div className="glass-card p-6 rounded-2xl border-l-4 border-l-purple-500">
                     <p className="text-gray-400 text-sm">Premium Photos</p>
                     <p className="text-3xl font-bold text-gradient mt-1">
-                        {prompts.filter(p => p.category === 'Premium').length}
+                        {prompts.filter(p => p.category === 'Premium' || p.tier === 'premium' || p.isPremium).length}
                     </p>
                 </div>
             </div>

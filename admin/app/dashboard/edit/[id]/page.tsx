@@ -101,8 +101,11 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                 body: JSON.stringify({
                     ...formData,
                     imageUrl: finalImageUrl,
-                    keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
-                    category: formData.category
+                    keywords: formData.keywords.split(',').map((k: string) => k.trim()).filter((k: string) => k),
+                    category: formData.category,
+                    // Auto-set premium flags when category is Premium
+                    tier: formData.category === 'Premium' ? 'premium' : 'free',
+                    isPremium: formData.category === 'Premium',
                 })
             });
             router.push('/dashboard');

@@ -875,9 +875,9 @@ function NewArrivalScreen({ navigation }) {
         const shuffled = shuffleWithSeed(data, dailySeed);
 
         const filtered = shuffled.filter(i => {
-          // Requirement: Only show prompts from the last 24 hours
+          // Requirement: Only show prompts from the last 24 hours, exclude ALL premium content
           const isRecent = (now - new Date(i.createdAt).getTime()) <= 24 * 60 * 60 * 1000;
-          const isNotPremium = i.tier !== 'premium' && !i.isPremium;
+          const isNotPremium = i.tier !== 'premium' && !i.isPremium && i.category !== 'Premium';
           return isRecent && isNotPremium;
         });
         setAllNewPrompts(filtered);
@@ -1741,7 +1741,7 @@ export default function App() {
   useEffect(() => {
     load();
     requestNotificationPermissions();
-    const timer = setTimeout(() => setShowSplash(false), 2500);
+    const timer = setTimeout(() => setShowSplash(false), 3600);
     return () => clearTimeout(timer);
   }, []);
 
@@ -2058,23 +2058,177 @@ export default function App() {
         </Modal>
 
         {/* 🚀 Premium Animated Splash Screen */}
-        {showSplash && (
-          <View style={styles.splashOverlay}>
-            <Animated.View style={{ alignItems: 'center' }}>
-              <View style={styles.splashLogoBox}>
-                <Sparkles size={60} color="#5B4CDB" />
-              </View>
-              <AppText variant="bold" style={{ color: '#1A1033', fontSize: 42, marginTop: 24, letterSpacing: 2 }}>AI PHOTO PROMPT</AppText>
-              <AppText style={{ color: '#6B7280', fontSize: 13, letterSpacing: 5, marginTop: 5 }}>AI POWERED PROMPT STUDIO</AppText>
-              <View style={{ marginTop: 60 }}>
-                <ActivityIndicator color="#5B4CDB" size="large" />
-              </View>
-            </Animated.View>
-          </View>
-        )}
+        {showSplash && <SplashScreenView />}
 
       </UserContext.Provider>
     </GestureHandlerRootView>
+  );
+}
+
+function SplashScreenView() {
+  // --- Animation Values ---
+  const logoScale = useRef(new Animated.Value(0)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const ringScale = useRef(new Animated.Value(0.6)).current;
+  const ringOpacity = useRef(new Animated.Value(0)).current;
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const titleTranslateY = useRef(new Animated.Value(30)).current;
+  const subtitleOpacity = useRef(new Animated.Value(0)).current;
+  const progressWidth = useRef(new Animated.Value(0)).current;
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  // Sparkle dots
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
+  const dot4 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // 1. Logo springs in
+    Animated.parallel([
+      Animated.spring(logoScale, { toValue: 1, tension: 60, friction: 7, useNativeDriver: true }),
+      Animated.timing(logoOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start();
+
+    // 2. Ring pulse (continuous)
+    Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(ringScale, { toValue: 1.25, duration: 900, useNativeDriver: true }),
+          Animated.timing(ringOpacity, { toValue: 0.5, duration: 450, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(ringScale, { toValue: 0.6, duration: 900, useNativeDriver: true }),
+          Animated.timing(ringOpacity, { toValue: 0, duration: 450, useNativeDriver: true }),
+        ]),
+      ])
+    ).start();
+
+    // 3. Sparkle dots staggered
+    const dotIn = (anim, delay) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, { toValue: 1, duration: 500, useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 0, duration: 500, useNativeDriver: true }),
+          Animated.delay(600),
+        ])
+      );
+    dotIn(dot1, 0).start();
+    dotIn(dot2, 350).start();
+    dotIn(dot3, 700).start();
+    dotIn(dot4, 1050).start();
+
+    // 4. Title slides up after 300ms
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(titleOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.spring(titleTranslateY, { toValue: 0, tension: 70, friction: 8, useNativeDriver: true }),
+      ]).start();
+    }, 300);
+
+    // 5. Subtitle fades after 600ms
+    setTimeout(() => {
+      Animated.timing(subtitleOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+    }, 700);
+
+    // 6. Progress bar fills over 3s
+    setTimeout(() => {
+      Animated.timing(progressWidth, { toValue: 1, duration: 3000, useNativeDriver: false }).start();
+    }, 300);
+
+    // 7. Shimmer background
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 1800, useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0, duration: 1800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  const BAR_WIDTH = width * 0.55;
+
+  return (
+    <View style={[styles.splashOverlay, { overflow: 'hidden' }]}>
+      {/* Shimmer background blob */}
+      <Animated.View style={{
+        position: 'absolute', width: 350, height: 350, borderRadius: 175,
+        backgroundColor: '#5B4CDB', top: -80, right: -80, opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.05, 0.12] }),
+      }} />
+      <Animated.View style={{
+        position: 'absolute', width: 250, height: 250, borderRadius: 125,
+        backgroundColor: '#7C3AED', bottom: -60, left: -60, opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.15] }),
+      }} />
+
+      {/* Center content */}
+      <View style={{ alignItems: 'center' }}>
+
+        {/* Logo with pulsing ring */}
+        <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+          {/* Pulsing outer ring */}
+          <Animated.View style={{
+            position: 'absolute',
+            width: 160, height: 160, borderRadius: 80,
+            borderWidth: 2, borderColor: '#5B4CDB',
+            opacity: ringOpacity,
+            transform: [{ scale: ringScale }],
+          }} />
+          {/* Middle ring */}
+          <Animated.View style={{
+            position: 'absolute',
+            width: 140, height: 140, borderRadius: 70,
+            borderWidth: 1.5, borderColor: '#5B4CDB40',
+            opacity: ringOpacity.interpolate({ inputRange: [0, 1], outputRange: [0, 0.7] }),
+            transform: [{ scale: ringScale.interpolate({ inputRange: [0.6, 1.25], outputRange: [0.8, 1.1] }) }],
+          }} />
+
+          {/* Logo box */}
+          <Animated.View style={[styles.splashLogoBox, { transform: [{ scale: logoScale }], opacity: logoOpacity }]}>
+            <Sparkles size={56} color="#5B4CDB" />
+          </Animated.View>
+
+          {/* Orbiting sparkle dots */}
+          {[
+            { anim: dot1, top: -6, left: 90, color: '#5B4CDB' },
+            { anim: dot2, top: 90, right: -6, color: '#7C3AED' },
+            { anim: dot3, bottom: -6, left: 50, color: '#EC4899' },
+            { anim: dot4, top: 50, left: -8, color: '#F59E0B' },
+          ].map((d, i) => (
+            <Animated.View key={i} style={{
+              position: 'absolute', width: 12, height: 12, borderRadius: 6,
+              backgroundColor: d.color,
+              top: d.top, left: d.left, right: d.right, bottom: d.bottom,
+              opacity: d.anim,
+              transform: [{ scale: d.anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }],
+            }} />
+          ))}
+        </View>
+
+        {/* Title */}
+        <Animated.View style={{ alignItems: 'center', marginTop: 36, opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] }}>
+          <AppText variant="bold" style={{ color: '#1A1033', fontSize: 38, letterSpacing: 3 }}>AI PHOTO</AppText>
+          <AppText variant="bold" style={{ color: '#5B4CDB', fontSize: 38, letterSpacing: 3, marginTop: -4 }}>PROMPT</AppText>
+        </Animated.View>
+
+        {/* Tagline */}
+        <Animated.View style={{ opacity: subtitleOpacity, marginTop: 10 }}>
+          <AppText style={{ color: '#9CA3AF', fontSize: 11, letterSpacing: 6 }}>AI POWERED PROMPT STUDIO</AppText>
+        </Animated.View>
+
+        {/* Progress bar */}
+        <Animated.View style={{ opacity: subtitleOpacity, marginTop: 52, alignItems: 'center' }}>
+          <View style={{ width: BAR_WIDTH, height: 3, backgroundColor: '#E4E4F7', borderRadius: 4, overflow: 'hidden' }}>
+            <Animated.View style={{
+              height: '100%', borderRadius: 4,
+              backgroundColor: '#5B4CDB',
+              width: progressWidth.interpolate({ inputRange: [0, 1], outputRange: [0, BAR_WIDTH] }),
+            }} />
+          </View>
+          <AppText style={{ color: '#C4B5FD', fontSize: 10, letterSpacing: 2, marginTop: 12 }}>LOADING...</AppText>
+        </Animated.View>
+
+      </View>
+    </View>
   );
 }
 

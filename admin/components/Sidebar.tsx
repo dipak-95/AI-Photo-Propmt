@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutDashboard, Image as ImageIcon, Settings, LogOut, Plus, User, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Image as ImageIcon, Settings, LogOut, Plus, User, Sparkles, Crown } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
@@ -19,6 +19,7 @@ export default function Sidebar() {
         { icon: LayoutDashboard, label: 'All Photos', href: '/dashboard', active: pathname === '/dashboard' && !currentCategory },
         { icon: User, label: 'Men', href: '/dashboard?category=Men', active: currentCategory === 'Men' },
         { icon: Sparkles, label: 'Women', href: '/dashboard?category=Women', active: currentCategory === 'Women' },
+        { icon: Crown, label: 'Premium', href: '/dashboard?category=Premium', active: currentCategory === 'Premium' },
         { icon: Settings, label: 'Settings', href: '/dashboard/settings', active: pathname === '/dashboard/settings' },
     ];
 

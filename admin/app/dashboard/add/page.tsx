@@ -67,7 +67,10 @@ export default function AddPromptPage() {
                 body: JSON.stringify({
                     ...formData,
                     imageUrl: finalImageUrl,
-                    keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k)
+                    keywords: formData.keywords.split(',').map((k: string) => k.trim()).filter((k: string) => k),
+                    // Auto-set premium flags when category is Premium
+                    tier: formData.category === 'Premium' ? 'premium' : 'free',
+                    isPremium: formData.category === 'Premium',
                 })
             });
             router.push('/dashboard');

@@ -10,6 +10,8 @@ export interface PromptData {
     style: string;
     keywords: string[];
     category: string;
+    tier: string;
+    isPremium: boolean;
     createdAt: string;
 }
 
@@ -23,6 +25,8 @@ function mapDoc(doc: any): PromptData {
         style: doc.style,
         keywords: doc.keywords,
         category: doc.category || 'Men', // Default to Men for existing data
+        tier: doc.tier || 'free',
+        isPremium: doc.isPremium || doc.category === 'Premium' || doc.tier === 'premium',
         createdAt: doc.createdAt.toISOString(),
     };
 }
