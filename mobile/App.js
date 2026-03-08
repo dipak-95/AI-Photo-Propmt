@@ -325,7 +325,7 @@ const PromptCard = ({ item, isLocked, isPremium, onPress }) => {
               <Lock size={10} color="white" />
               <AppText variant="bold" style={{ color: 'white', fontSize: 9, marginLeft: 3 }}>
                 {(hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 0)) || (userData?.streakVoucherUnlocks || 0) > 0)
-                  ? 'FREE UNLOCK'
+                  ? 'FREE TO UNLOCK'
                   : '25 coins'}
               </AppText>
             </View>
@@ -518,10 +518,10 @@ function HomeScreen({ navigation }) {
               marginLeft: 8
             }}>
               {hasSubscription ? 'UNLIMITED PRO ACCESS' :
-                (hasPass && (userData.premiumPassUnlocks || 0) < (userData.premiumPassLimit || 0)) ?
-                  `${(userData.premiumPassLimit || 0) - (userData.premiumPassUnlocks || 0)} FREE PROMPTS REMAINING` :
-                  (userData.streakVoucherUnlocks || 0) > 0 ?
-                    `${userData.streakVoucherUnlocks} STREAK UNLOCKS REMAINING` :
+                (hasPass && (userData?.premiumPassLimit || 0) > 0) ?
+                  `${(userData?.premiumPassLimit || 0) - (userData?.premiumPassUnlocks || 0)} PROMPTS ARE FREE, THEN 25 COINS PER PROMPT` :
+                  (userData?.streakVoucherUnlocks || 0) > 0 ?
+                    `${userData.streakVoucherUnlocks} STREAK UNLOCKS REMAINING, THEN 25 COINS EACH` :
                     'PROMPT PRICE: 25 COINS'}
             </AppText>
           </View>
@@ -1712,7 +1712,7 @@ function DetailsScreen({ route, navigation }) {
                 <AppText variant="bold" style={{ color: 'white', marginLeft: 10 }}>
                   {(hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 0)) || (userData?.streakVoucherUnlocks || 0) > 0)
                     ? 'UNLOCK FOR FREE'
-                    : `UNLOCK PROMPT (${PROMPT_COST} COINS)`}
+                    : `UNLOCK PROMPT (25 COINS)`}
                 </AppText>
               </TouchableOpacity>
             </View>
