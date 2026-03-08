@@ -120,7 +120,17 @@ const COLORS = {
   }
 };
 
-const UserContext = React.createContext();
+const UserContext = React.createContext({
+  theme: 'light',
+  userData: {
+    unlockedIds: [],
+    favorites: [],
+    vouchers: { dayPass: 0, weekPass: 0 },
+    subscription: { expiry: 0 }
+  },
+  hasSubscription: false,
+  showAlert: () => { }
+});
 
 // --- COMPONENTS ---
 
@@ -256,7 +266,8 @@ const AdCard = ({ theme }) => {
 };
 
 const PromptCard = ({ item, isLocked, isPremium, onPress }) => {
-  const { theme } = useContext(UserContext);
+  const { theme, userData = {}, hasSubscription = false } = useContext(UserContext);
+  const hasPass = (userData?.premiumPassExpiry || 0) > Date.now();
   const colorSet = COLORS[theme];
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [imgLoading, setImgLoading] = useState(true);
@@ -313,7 +324,7 @@ const PromptCard = ({ item, isLocked, isPremium, onPress }) => {
             <View style={styles.lockPill}>
               <Lock size={10} color="white" />
               <AppText variant="bold" style={{ color: 'white', fontSize: 9, marginLeft: 3 }}>
-                {(hasSubscription || (hasPass && (userData.premiumPassUnlocks || 0) < (userData.premiumPassLimit || 0)) || (userData.streakVoucherUnlocks || 0) > 0)
+                {(hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 0)) || (userData?.streakVoucherUnlocks || 0) > 0)
                   ? 'FREE UNLOCK'
                   : '25 coins'}
               </AppText>
@@ -408,7 +419,7 @@ function HomeScreen({ navigation }) {
     }
   };
 
-  const hasPass = userData.premiumPassExpiry > Date.now();
+  const hasPass = (userData?.premiumPassExpiry || 0) > Date.now();
 
   const onSelectCategory = (cat) => {
     if (cat === 'PREMIUM' && !hasSubscription && !hasPass) {
@@ -489,7 +500,7 @@ function HomeScreen({ navigation }) {
 
       {/* Premium Quota Indicator */}
       {selectedCategory === 'PREMIUM' && (
-        <View style={{ px: 16, pb: 10, alignItems: 'center' }}>
+        <View style={{ paddingHorizontal: 16, paddingBottom: 10, alignItems: 'center' }}>
           <View style={{
             backgroundColor: hasSubscription ? '#10B98115' : '#7C3AED15',
             paddingHorizontal: 20,
@@ -537,7 +548,7 @@ function HomeScreen({ navigation }) {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                   {item.items.map((prompt) => {
                     const isPremium = prompt.tier === 'premium' || prompt.isPremium;
-                    const isUnlocked = userData.unlockedIds.includes(prompt.id) || hasSubscription;
+                    const isUnlocked = (userData?.unlockedIds || []).includes(prompt.id) || hasSubscription;
                     return (
                       <PromptCard
                         key={prompt.id}
@@ -1540,9 +1551,9 @@ function SubscriptionScreen({ navigation }) {
 
 function DetailsScreen({ route, navigation }) {
   const { item } = route.params;
-  const { theme, userData, updateUserData, hasSubscription, showAlert } = useContext(UserContext);
-  const hasPass = userData.premiumPassExpiry > Date.now();
-  const isUnlocked = userData.unlockedIds.includes(item.id) || hasSubscription;
+  const { theme, userData = {}, updateUserData, hasSubscription = false, showAlert } = useContext(UserContext);
+  const hasPass = (userData?.premiumPassExpiry || 0) > Date.now();
+  const isUnlocked = (userData?.unlockedIds || []).includes(item.id) || hasSubscription;
   const isFav = userData.favorites.includes(item.id);
   const [imgLoading, setImgLoading] = useState(true);
   const [adLoaded, setAdLoaded] = useState(false);
@@ -1699,7 +1710,7 @@ function DetailsScreen({ route, navigation }) {
               >
                 <Unlock size={20} color="white" />
                 <AppText variant="bold" style={{ color: 'white', marginLeft: 10 }}>
-                  {(hasSubscription || (hasPass && (userData.premiumPassUnlocks || 0) < (userData.premiumPassLimit || 0)) || (userData.streakVoucherUnlocks || 0) > 0)
+                  {(hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 0)) || (userData?.streakVoucherUnlocks || 0) > 0)
                     ? 'UNLOCK FOR FREE'
                     : `UNLOCK PROMPT (${PROMPT_COST} COINS)`}
                 </AppText>
@@ -2005,7 +2016,7 @@ export default function App() {
         userData,
         updateUserData: update,
         showAlert,
-        hasSubscription: userData.subscription.expiry > Date.now(),
+        hasSubscription: (userData?.subscription?.expiry || 0) > Date.now(),
         updateSubscription: (days, price) => update({
           subscription: {
             type: 'pro',
