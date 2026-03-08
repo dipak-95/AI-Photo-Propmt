@@ -324,7 +324,7 @@ const PromptCard = ({ item, isLocked, isPremium, onPress }) => {
             <View style={styles.lockPill}>
               <Lock size={10} color="white" />
               <AppText variant="bold" style={{ color: 'white', fontSize: 9, marginLeft: 3 }}>
-                {(hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 10)) || (userData?.streakVoucherUnlocks || 0) > 0)
+                {isPremium && (hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 10)) || (userData?.streakVoucherUnlocks || 0) > 0)
                   ? 'FREE TO UNLOCK'
                   : '25 coins'}
               </AppText>
@@ -1627,11 +1627,11 @@ function DetailsScreen({ route, navigation }) {
     if (hasSubscription) {
       isFree = true;
       cost = 0;
-    } else if (isPremium && hasPass && newPassUnlocks < (userData.premiumPassLimit || 0)) {
+    } else if (isPremium && hasPass && newPassUnlocks < (userData.premiumPassLimit || 10)) {
       isFree = true;
       cost = 0;
       newPassUnlocks += 1;
-    } else if (newVoucherUnlocks > 0) {
+    } else if (isPremium && newVoucherUnlocks > 0) {
       isFree = true;
       cost = 0;
       newVoucherUnlocks -= 1;
@@ -1746,7 +1746,7 @@ function DetailsScreen({ route, navigation }) {
               >
                 <Unlock size={20} color="white" />
                 <AppText variant="bold" style={{ color: 'white', marginLeft: 10 }}>
-                  {(hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 10)) || (userData?.streakVoucherUnlocks || 0) > 0)
+                  {(isPremium && (hasSubscription || (hasPass && (userData?.premiumPassUnlocks || 0) < (userData?.premiumPassLimit || 10)) || (userData?.streakVoucherUnlocks || 0) > 0))
                     ? 'UNLOCK FOR FREE'
                     : `UNLOCK PROMPT (25 COINS)`}
                 </AppText>
@@ -1973,8 +1973,12 @@ export default function App() {
     const rewardCoins = getStreakReward(newStreak);
     let dayPassGain = 0;
     let weekPassGain = 0;
+    let streakQuotaGain = 0;
 
-    if (newStreak === 31) dayPassGain = 1;
+    if (newStreak === 31) {
+      dayPassGain = 1;
+      streakQuotaGain = 5;
+    }
     if (newStreak === 61) weekPassGain = 1;
 
     const newVouchers = {
@@ -1988,7 +1992,8 @@ export default function App() {
       currentStreak: newStreak,
       longestStreak: Math.max(newStreak, base.longestStreak || 0),
       lastOpenDate: today,
-      vouchers: newVouchers
+      vouchers: newVouchers,
+      streakVoucherUnlocks: (base.streakVoucherUnlocks || 0) + streakQuotaGain
     };
 
     setUserData(updated);
