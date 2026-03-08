@@ -312,7 +312,11 @@ const PromptCard = ({ item, isLocked, isPremium, onPress }) => {
           {isLocked && (
             <View style={styles.lockPill}>
               <Lock size={10} color="white" />
-              <AppText variant="bold" style={{ color: 'white', fontSize: 9, marginLeft: 3 }}>25 coins</AppText>
+              <AppText variant="bold" style={{ color: 'white', fontSize: 9, marginLeft: 3 }}>
+                {(hasSubscription || (hasPass && (userData.premiumPassUnlocks || 0) < (userData.premiumPassLimit || 0)) || (userData.streakVoucherUnlocks || 0) > 0)
+                  ? 'FREE UNLOCK'
+                  : '25 coins'}
+              </AppText>
             </View>
           )}
         </View>
@@ -483,6 +487,36 @@ function HomeScreen({ navigation }) {
 
       <CategorySelector selected={selectedCategory} onSelect={onSelectCategory} />
 
+      {/* Premium Quota Indicator */}
+      {selectedCategory === 'PREMIUM' && (
+        <View style={{ px: 16, pb: 10, alignItems: 'center' }}>
+          <View style={{
+            backgroundColor: hasSubscription ? '#10B98115' : '#7C3AED15',
+            paddingHorizontal: 20,
+            paddingVertical: 8,
+            borderRadius: 15,
+            borderWidth: 1,
+            borderColor: hasSubscription ? '#10B98130' : '#7C3AED30',
+            flexDirection: 'row',
+            alignItems: 'center'
+          }}>
+            <Sparkles size={14} color={hasSubscription ? '#10B981' : '#7C3AED'} />
+            <AppText variant="bold" style={{
+              color: hasSubscription ? '#10B981' : '#7C3AED',
+              fontSize: 12,
+              marginLeft: 8
+            }}>
+              {hasSubscription ? 'UNLIMITED PRO ACCESS' :
+                (hasPass && (userData.premiumPassUnlocks || 0) < (userData.premiumPassLimit || 0)) ?
+                  `${(userData.premiumPassLimit || 0) - (userData.premiumPassUnlocks || 0)} FREE PROMPTS REMAINING` :
+                  (userData.streakVoucherUnlocks || 0) > 0 ?
+                    `${userData.streakVoucherUnlocks} STREAK UNLOCKS REMAINING` :
+                    'PROMPT PRICE: 25 COINS'}
+            </AppText>
+          </View>
+        </View>
+      )}
+
       {loading ? (
         <LoadingScreen />
       ) : (
@@ -584,6 +618,7 @@ function SpinScreen() {
   };
 
   // 6 rewards — shuffled for excitement
+  // 6 rewards — reverted back to coins for testing
   const rewards = [10, 30, 5, 50, 15, 20];
   const probabilities = [0.25, 0.07, 0.40, 0.03, 0.15, 0.10];
 
@@ -663,12 +698,7 @@ function SpinScreen() {
         });
 
         setIsSpinning(false);
-        showAlert(
-          '🎉 Congratulations!',
-          `You won ${reward} COINS! 🪙\n\nNew Balance: ${userData.coins + reward} coins`,
-          [{ text: 'Awesome! 🙌', style: 'default' }],
-          'success'
-        );
+        // Requirement: Auto-collect (no alert modal)
       }
     });
   };
@@ -1338,9 +1368,10 @@ function SubscriptionScreen({ navigation }) {
             updateUserData({
               coins: userData.coins - 250,
               premiumPassExpiry: Date.now() + 24 * 60 * 60 * 1000,
-              premiumPassUnlocks: 0
+              premiumPassUnlocks: 0,
+              premiumPassLimit: 10 // Paid Pass gives 10
             });
-            showAlert('Pass Activated!', 'You can now access the Premium category for 24 hours!', [{ text: 'Let’s Go!' }], 'success');
+            showAlert('Pass Activated!', 'You can now access the Premium category for 24 hours with 10 free unlocks!', [{ text: 'Let’s Go!' }], 'success');
           }
         }
       ]
@@ -1375,9 +1406,10 @@ function SubscriptionScreen({ navigation }) {
                           updateUserData({
                             vouchers: { ...userData.vouchers, dayPass: userData.vouchers.dayPass - 1 },
                             premiumPassExpiry: Date.now() + 24 * 60 * 60 * 1000,
-                            premiumPassUnlocks: 0
+                            premiumPassUnlocks: 0,
+                            premiumPassLimit: 5 // Voucher/Streak Pass gives 5
                           });
-                          showAlert('Success!', '1-Day Premium Pass activated.', [{ text: 'Great!' }], 'success');
+                          showAlert('Success!', '1-Day Premium Pass activated with 5 free unlocks.', [{ text: 'Great!' }], 'success');
                         }
                       }
                     ]);
@@ -1542,22 +1574,35 @@ function DetailsScreen({ route, navigation }) {
 
     let cost = PROMPT_COST;
     let newPassUnlocks = userData.premiumPassUnlocks || 0;
+    let newVoucherUnlocks = userData.streakVoucherUnlocks || 0;
+    let isFree = false;
 
-    if (isPremium && hasPass) {
-      if ((userData.premiumPassUnlocks || 0) < 10) {
-        cost = 0;
-        newPassUnlocks += 1;
-      }
+    if (hasSubscription) {
+      isFree = true;
+      cost = 0;
+    } else if (isPremium && hasPass && newPassUnlocks < (userData.premiumPassLimit || 0)) {
+      isFree = true;
+      cost = 0;
+      newPassUnlocks += 1;
+    } else if (newVoucherUnlocks > 0) {
+      isFree = true;
+      cost = 0;
+      newVoucherUnlocks -= 1;
     }
 
-    if (userData.coins < cost) {
+    if (!isFree && userData.coins < cost) {
       showAlert('Insufficient Coins', `You need ${cost - userData.coins} more coins.`, [{ text: 'Get Coins', onPress: () => navigation.navigate('Spin') }, { text: 'Close', style: 'cancel' }], 'error');
       return;
     }
 
+    const titleMsg = isFree ? 'Free Unlock?' : 'Unlock Prompt?';
+    const bodyMsg = isFree
+      ? 'Unlock this premium prompt using your free quota?'
+      : `Unlock this premium prompt for ${cost} coins?`;
+
     showAlert(
-      'Unlock Prompt?',
-      `Unlock this premium prompt for ${cost} coins?`,
+      titleMsg,
+      bodyMsg,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -1566,11 +1611,15 @@ function DetailsScreen({ route, navigation }) {
             updateUserData({
               coins: userData.coins - cost,
               unlockedIds: [...userData.unlockedIds, item.id],
-              premiumPassUnlocks: newPassUnlocks
+              premiumPassUnlocks: newPassUnlocks,
+              streakVoucherUnlocks: newVoucherUnlocks
             });
 
-            if (cost === 0) {
-              showAlert('Free Unlock!', `Premium Pass used. ${10 - newPassUnlocks} free premium unlocks remaining!`, [{ text: 'Sweet!' }], 'success');
+            if (isFree) {
+              const remainingVal = hasSubscription ? '∞'
+                : (hasPass && newPassUnlocks < (userData.premiumPassLimit || 0)) ? ((userData.premiumPassLimit || 0) - newPassUnlocks)
+                  : newVoucherUnlocks;
+              showAlert('Unlocked!', `Prompt unlocked for free! Remaining quota: ${remainingVal}`, [{ text: 'Awesome!' }], 'success');
             } else {
               showAlert('Unlocked!', 'Prompt unlocked successfully.', [{ text: 'Awesome' }], 'success');
             }
@@ -1649,7 +1698,11 @@ function DetailsScreen({ route, navigation }) {
                 style={[styles.actionBtnLarge, { backgroundColor: COLORS[theme].primary }]}
               >
                 <Unlock size={20} color="white" />
-                <AppText variant="bold" style={{ color: 'white', marginLeft: 10 }}>UNLOCK PROMPT (25 COINS)</AppText>
+                <AppText variant="bold" style={{ color: 'white', marginLeft: 10 }}>
+                  {(hasSubscription || (hasPass && (userData.premiumPassUnlocks || 0) < (userData.premiumPassLimit || 0)) || (userData.streakVoucherUnlocks || 0) > 0)
+                    ? 'UNLOCK FOR FREE'
+                    : `UNLOCK PROMPT (${PROMPT_COST} COINS)`}
+                </AppText>
               </TouchableOpacity>
             </View>
           )}
