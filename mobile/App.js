@@ -70,7 +70,7 @@ const shuffleWithSeed = (array, seed) => {
 // --- CONSTANTS ---
 const API_URL = 'https://sdkv.online/api/prompts';
 const CONFIG_URL = 'https://sdkv.online/api/config';
-const CURRENT_VERSION = '4.0.0';
+const CURRENT_VERSION = '4.1.0';
 
 const PROMPT_COST = 25; // coins
 const FREE_SPIN_COOLDOWN = 2 * 60 * 60 * 1000; // 2 Hours

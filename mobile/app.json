@@ -2,7 +2,7 @@
   "expo": {
     "name": "AI Photo Prompt",
     "slug": "pearl-ai",
-    "version": "4.0.0",
+    "version": "4.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -21,7 +21,7 @@
       "edgeToEdgeEnabled": true,
       "package": "com.dipak.pearlai",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 8,
+      "versionCode": 9,
       "permissions": [
         "com.google.android.gms.permission.AD_ID"
       ]
