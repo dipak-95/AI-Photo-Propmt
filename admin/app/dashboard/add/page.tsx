@@ -61,7 +61,7 @@ export default function AddPromptPage() {
                 setUploading(false);
             }
 
-            await fetch('/api/prompts', {
+            const res = await fetch('/api/prompts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -73,9 +73,16 @@ export default function AddPromptPage() {
                     isPremium: formData.category === 'Premium',
                 })
             });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Server error');
+            }
+
             router.push('/dashboard');
-        } catch (error) {
-            alert('Failed to save prompt');
+        } catch (error: any) {
+            console.error('Save error:', error);
+            alert('Failed to save prompt: ' + (error.message || 'Unknown error'));
             setUploading(false);
         } finally {
             setLoading(false);

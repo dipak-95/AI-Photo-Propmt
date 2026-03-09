@@ -95,7 +95,7 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                 setUploading(false);
             }
 
-            await fetch(`/api/prompts/${id}`, {
+            const res = await fetch(`/api/prompts/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -108,9 +108,16 @@ export default function EditPromptPage({ params }: { params: Promise<{ id: strin
                     isPremium: formData.category === 'Premium',
                 })
             });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Server error');
+            }
+
             router.push('/dashboard');
-        } catch (error) {
-            alert('Failed to update prompt');
+        } catch (error: any) {
+            console.error('Update error:', error);
+            alert('Failed to update prompt: ' + (error.message || 'Unknown error'));
             setUploading(false);
         } finally {
             setSaving(false);

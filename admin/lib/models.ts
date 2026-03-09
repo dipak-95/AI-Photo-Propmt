@@ -25,6 +25,15 @@ const PromptSchema = new Schema({
         type: String,
         default: 'Men',
     },
+    tier: {
+        type: String,
+        enum: ['free', 'premium'],
+        default: 'free',
+    },
+    isPremium: {
+        type: Boolean,
+        default: false,
+    },
     createdAt: {
         type: Date,
         default: Date.now,
