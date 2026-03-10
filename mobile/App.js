@@ -611,7 +611,7 @@ function SpinScreen() {
       console.log('Rewarded Ad Loaded');
     });
     const unsubEarned = rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward) => {
-      updateUserData({ spinTickets: (userData.spinTickets || 0) + 1 });
+      updateUserData(prev => ({ spinTickets: (prev.spinTickets || 0) + 1 }));
       showAlert('Reward Earned!', 'You got 1 extra spin ticket! 🎫', [{ text: 'Awesome' }], 'success');
     });
     rewardedAd.load();
@@ -664,7 +664,7 @@ function SpinScreen() {
       const diff = now - last;
       if (last === 0) {
         // Initialize: give first spin free immediately
-        updateUserData({ lastSpinTime: now - FREE_SPIN_COOLDOWN });
+        updateUserData(prev => ({ lastSpinTime: now - FREE_SPIN_COOLDOWN }));
       } else {
         const remaining = FREE_SPIN_COOLDOWN - diff;
         setTimeLeft(Math.max(0, remaining));
@@ -720,11 +720,11 @@ function SpinScreen() {
         currentAngle.current = finalAngle;
         rotation.setValue(finalAngle);
 
-        updateUserData({
-          coins: userData.coins + reward,
-          spinTickets: useTicket ? Math.max(0, tickets - 1) : tickets,
-          lastSpinTime: hasFreeSlot ? Date.now() : userData.lastSpinTime,
-        });
+        updateUserData(prev => ({
+          coins: (prev.coins || 0) + reward,
+          spinTickets: useTicket ? Math.max(0, (prev.spinTickets || 0) - 1) : (prev.spinTickets || 0),
+          lastSpinTime: hasFreeSlot ? Date.now() : prev.lastSpinTime,
+        }));
 
         setIsSpinning(false);
         // Requirement: Auto-collect (no alert modal)
@@ -1160,7 +1160,7 @@ function ProfileScreen({ navigation }) {
   const C = COLORS[theme];
 
   const handleSaveName = () => {
-    updateUserData({ name: newName });
+    updateUserData(prev => ({ name: newName }));
     setIsEditingName(false);
   };
 
@@ -1386,7 +1386,7 @@ function SubscriptionScreen({ navigation }) {
         {
           text: 'Buy Now',
           onPress: () => {
-            updateUserData({ coins: userData.coins - plan.price });
+            updateUserData(prev => ({ coins: (prev.coins || 0) - plan.price }));
             updateSubscription(plan.days, plan.price);
             showAlert('Success!', 'PRO Status activated. All sections are now unlocked!', [{ text: 'Great!' }], 'success');
             navigation.goBack();
@@ -1418,12 +1418,12 @@ function SubscriptionScreen({ navigation }) {
         {
           text: 'Buy for 250',
           onPress: () => {
-            updateUserData({
-              coins: userData.coins - 250,
+            updateUserData(prev => ({
+              coins: (prev.coins || 0) - 250,
               premiumPassExpiry: Date.now() + 24 * 60 * 60 * 1000,
               premiumPassUnlocks: 0,
               premiumPassLimit: 10 // Paid Pass gives 10
-            });
+            }));
             showAlert('Pass Activated!', 'You can now access the Premium category for 24 hours with 10 free unlocks!', [{ text: 'Let’s Go!' }], 'success');
           }
         }
@@ -1456,12 +1456,12 @@ function SubscriptionScreen({ navigation }) {
                       { text: 'Cancel', style: 'cancel' },
                       {
                         text: 'Redeem', onPress: () => {
-                          updateUserData({
-                            vouchers: { ...userData.vouchers, dayPass: userData.vouchers.dayPass - 1 },
+                          updateUserData(prev => ({
+                            vouchers: { ...(prev.vouchers || {}), dayPass: Math.max(0, (prev.vouchers?.dayPass || 0) - 1) },
                             premiumPassExpiry: Date.now() + 24 * 60 * 60 * 1000,
                             premiumPassUnlocks: 0,
                             premiumPassLimit: 5 // Voucher/Streak Pass gives 5
-                          });
+                          }));
                           showAlert('Success!', '1-Day Premium Pass activated with 5 free unlocks.', [{ text: 'Great!' }], 'success');
                         }
                       }
@@ -1488,9 +1488,9 @@ function SubscriptionScreen({ navigation }) {
                       { text: 'Cancel', style: 'cancel' },
                       {
                         text: 'Redeem', onPress: () => {
-                          updateUserData({
-                            vouchers: { ...userData.vouchers, weekPass: userData.vouchers.weekPass - 1 }
-                          });
+                          updateUserData(prev => ({
+                            vouchers: { ...(prev.vouchers || {}), weekPass: Math.max(0, (prev.vouchers?.weekPass || 0) - 1) }
+                          }));
                           updateSubscription(7, 0);
                           showAlert('Success!', '7-Day PRO Status activated.', [{ text: 'Awesome' }], 'success');
                         }
@@ -1603,8 +1603,7 @@ function DetailsScreen({ route, navigation }) {
 
   // Requirement: Interstitial after 3/4 detail views (on leave)
   useEffect(() => {
-    const visits = (userData.detailVisits || 0) + 1;
-    updateUserData({ detailVisits: visits });
+    updateUserData(prev => ({ detailVisits: (prev.detailVisits || 0) + 1 }));
 
     if (!interstitialAd.loaded) interstitialAd.load();
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
@@ -1661,12 +1660,12 @@ function DetailsScreen({ route, navigation }) {
         {
           text: 'Unlock Now',
           onPress: () => {
-            updateUserData({
-              coins: userData.coins - cost,
-              unlockedIds: [...userData.unlockedIds, item.id],
+            updateUserData(prev => ({
+              coins: (prev.coins || 0) - cost,
+              unlockedIds: [...(prev.unlockedIds || []), item.id],
               premiumPassUnlocks: newPassUnlocks,
               streakVoucherUnlocks: newVoucherUnlocks
-            });
+            }));
 
             if (isFree) {
               const remainingVal = hasSubscription ? '∞'
@@ -1683,8 +1682,9 @@ function DetailsScreen({ route, navigation }) {
   };
 
   const toggleFav = () => {
-    const newFavs = isFav ? userData.favorites.filter(id => id !== item.id) : [...userData.favorites, item.id];
-    updateUserData({ favorites: newFavs });
+    updateUserData(prev => ({
+      favorites: isFav ? (prev.favorites || []).filter(id => id !== item.id) : [...(prev.favorites || []), item.id]
+    }));
   };
 
   return (
@@ -2023,14 +2023,16 @@ export default function App() {
     await processStreak(base, newStreak, today);
   };
 
-  const update = async (d) => {
-    const n = { ...userData, ...d };
-    setUserData(n);
-    await AsyncStorage.setItem('p_data', JSON.stringify(n));
-    // If lastSpinTime was updated, reschedule notification
-    if (d.lastSpinTime) {
-      scheduleSpinNotification(d.lastSpinTime);
-    }
+  const update = (d) => {
+    setUserData(prev => {
+      const delta = (typeof d === 'function') ? d(prev) : d;
+      const n = { ...prev, ...delta };
+      AsyncStorage.setItem('p_data', JSON.stringify(n)).catch(e => console.error("Save error:", e));
+      if (delta.lastSpinTime) {
+        scheduleSpinNotification(delta.lastSpinTime).catch(e => console.error("Notif error:", e));
+      }
+      return n;
+    });
   };
 
   // Requirement: Handle Ads (App Open & Interstitial Auto-Reload)
