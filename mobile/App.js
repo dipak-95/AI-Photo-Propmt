@@ -1056,7 +1056,7 @@ function NewArrivalScreen({ navigation }) {
                   <PromptCard
                     key={prompt.id}
                     item={{ ...prompt, isNew: true }}
-                    isLocked={!(userData.unlockedIds.includes(prompt.id) || hasSubscription)}
+                    isLocked={!((userData.unlockedIds || []).includes(prompt.id) || hasSubscription)}
                     isPremium={prompt.tier === 'premium'}
                     onPress={() => navigation.navigate('Details', { item: prompt })}
                   />
@@ -1108,7 +1108,7 @@ function FavoritesScreen({ navigation }) {
       try {
         const res = await fetch(API_URL);
         const data = await res.json();
-        const filtered = data.filter(i => userData.favorites.includes(i.id));
+        const filtered = data.filter(i => (userData.favorites || []).includes(i.id));
         setFavs(filtered);
       } catch (e) { } finally { setLoading(false); }
     };
@@ -1155,7 +1155,7 @@ function FavoritesScreen({ navigation }) {
                   <PromptCard
                     key={prompt.id}
                     item={prompt}
-                    isLocked={!(userData.unlockedIds.includes(prompt.id) || hasSubscription)}
+                    isLocked={!((userData.unlockedIds || []).includes(prompt.id) || hasSubscription)}
                     isPremium={prompt.tier === 'premium'}
                     onPress={() => navigation.navigate('Details', { item: prompt })}
                   />
@@ -1235,7 +1235,7 @@ function ProfileScreen({ navigation }) {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.spinScroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.profileScroll} showsVerticalScrollIndicator={false}>
         {/* Profile Hero Card */}
         <View style={[styles.profileHeroCard, { backgroundColor: C.card }]}>
           <View style={[styles.profileAvatarRing, { borderColor: C.primary + '40' }]}>
@@ -1287,24 +1287,27 @@ function ProfileScreen({ navigation }) {
             </View>
             <View style={[styles.statDivider, { backgroundColor: C.border }]} />
             <View style={styles.statItem}>
-              <AppText variant="bold" style={[styles.statValue, { color: C.primary }]}>{userData.unlockedIds.length}</AppText>
+              <AppText variant="bold" style={[styles.statValue, { color: C.primary }]}>{(userData.unlockedIds || []).length}</AppText>
               <AppText style={[styles.statLabel, { color: C.subText }]}>Unlocked</AppText>
             </View>
             <View style={[styles.statDivider, { backgroundColor: C.border }]} />
             <View style={styles.statItem}>
-              <AppText variant="bold" style={[styles.statValue, { color: '#EF4444' }]}>{userData.favorites.length}</AppText>
+              <AppText variant="bold" style={[styles.statValue, { color: '#EF4444' }]}>{(userData.favorites || []).length}</AppText>
               <AppText style={[styles.statLabel, { color: C.subText }]}>Saved</AppText>
             </View>
           </View>
         </View>
 
         {/* 🔥 Daily Streak Card */}
-        <View style={[styles.streakCard, { backgroundColor: '#FFF7ED', borderColor: '#F59E0B40' }]}>
+        <View style={[styles.streakCard, {
+          backgroundColor: theme === 'dark' ? '#2D1E10' : '#FFF7ED',
+          borderColor: theme === 'dark' ? '#F59E0B40' : '#F59E0B30'
+        }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
             <AppText style={{ fontSize: 28 }}>🔥</AppText>
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <AppText variant="bold" style={{ color: '#92400E', fontSize: 18 }}>{userData.currentStreak || 0} Day Streak</AppText>
-              <AppText style={{ color: '#B45309', fontSize: 12, marginTop: 2 }}>Best: {userData.longestStreak || 0} days</AppText>
+              <AppText variant="bold" style={{ color: theme === 'dark' ? '#FDE68A' : '#92400E', fontSize: 18 }}>{userData.currentStreak || 0} Day Streak</AppText>
+              <AppText style={{ color: theme === 'dark' ? '#F59E0B' : '#B45309', fontSize: 12, marginTop: 2 }}>Best: {userData.longestStreak || 0} days</AppText>
             </View>
             <View style={[styles.streakBadge, { backgroundColor: '#F59E0B' }]}>
               <AppText variant="bold" style={{ color: 'white', fontSize: 12 }}>{userData.currentStreak || 0}🔥</AppText>
@@ -1328,14 +1331,14 @@ function ProfileScreen({ navigation }) {
             })}
           </View>
 
-          <AppText style={{ color: '#92400E', fontSize: 11, textAlign: 'center', marginTop: 10 }}>
+          <AppText style={{ color: theme === 'dark' ? '#FDE68A90' : '#92400E', fontSize: 11, textAlign: 'center', marginTop: 10 }}>
             🎯 Open app daily to keep your streak alive!
           </AppText>
         </View>
 
         {/* 🏆 Streak Rewards Roadmap */}
         <AppText variant="semibold" style={{ color: C.subText, fontSize: 11, letterSpacing: 1, marginBottom: 8, marginLeft: 4 }}>REWARD SYSTEM 🔥</AppText>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 10 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 10, paddingHorizontal: 4 }}>
           {[
             { days: '1-5', coins: 10, icon: '🔥' },
             { days: '6-14', coins: 15, icon: '⚡' },
@@ -1652,7 +1655,7 @@ function DetailsScreen({ route, navigation }) {
   const isPremium = item.tier === 'premium' || item.isPremium;
   const hasPass = (userData?.premiumPassExpiry || 0) > Date.now();
   const isUnlocked = (userData?.unlockedIds || []).includes(item.id) || hasSubscription;
-  const isFav = userData.favorites.includes(item.id);
+  const isFav = (userData.favorites || []).includes(item.id);
   const [imgLoading, setImgLoading] = useState(true);
   const [adLoaded, setAdLoaded] = useState(false);
   const visitsRef = useRef(userData.detailVisits || 0);
@@ -2430,13 +2433,16 @@ function StreakModalContent({ streak, coins, voucher, onClose }) {
   const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   const todayDow = (new Date().getDay() + 6) % 7;
 
+  const { theme } = useContext(UserContext);
+  const C = COLORS[theme];
+
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: opacityAnim, alignItems: 'center' }}>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: opacityAnim, alignItems: 'center', backgroundColor: C.card, borderRadius: 32, padding: 32, width: '100%' }}>
       <AppText style={{ fontSize: 64 }}>🔥</AppText>
-      <AppText variant="bold" style={{ fontSize: 26, color: '#1A1033', marginTop: 8 }}>
+      <AppText variant="bold" style={{ fontSize: 26, color: C.text, marginTop: 8 }}>
         {streak} Day Streak!
       </AppText>
-      <AppText style={{ color: '#6B7280', fontSize: 14, marginTop: 4, textAlign: 'center' }}>
+      <AppText style={{ color: C.subText, fontSize: 14, marginTop: 4, textAlign: 'center' }}>
         Keep it up! Your fire is growing stronger.
       </AppText>
 
@@ -2446,9 +2452,9 @@ function StreakModalContent({ streak, coins, voucher, onClose }) {
           return (
             <View key={i} style={[
               styles.streakDot,
-              { backgroundColor: active ? '#F59E0B' : '#E4E4F7' },
+              { backgroundColor: active ? '#F59E0B' : theme === 'dark' ? '#334155' : '#E4E4F7' },
             ]}>
-              <AppText variant="bold" style={{ fontSize: 9, color: active ? 'white' : '#9CA3AF' }}>{d}</AppText>
+              <AppText variant="bold" style={{ fontSize: 9, color: active ? 'white' : theme === 'dark' ? '#64748B' : '#9CA3AF' }}>{d}</AppText>
             </View>
           );
         })}
@@ -2466,7 +2472,7 @@ function StreakModalContent({ streak, coins, voucher, onClose }) {
         {voucher && (
           <Animated.View style={[
             styles.streakVoucherBox,
-            { transform: [{ scale: coinAnim }], backgroundColor: '#EEF2FF', marginTop: 12 }
+            { transform: [{ scale: coinAnim }], backgroundColor: theme === 'dark' ? '#5B4CDB25' : '#EEF2FF', marginTop: 12 }
           ]}>
             <Crown size={20} color="#5B4CDB" />
             <AppText variant="bold" style={{ color: '#5B4CDB', fontSize: 15, marginLeft: 10 }}>Bonus: {voucher}</AppText>
@@ -2491,7 +2497,7 @@ function StreakModalContent({ streak, coins, voucher, onClose }) {
   );
 }
 
-const menuLabel = {};
+
 const styles = StyleSheet.create({
   // Core Layout
   container: { flex: 1 },
@@ -2535,6 +2541,8 @@ const styles = StyleSheet.create({
   // Spin Screen
   mainHeading: { fontSize: 28, marginVertical: 16, letterSpacing: 0.5 },
   spinBtn: { padding: 18, borderRadius: 20, alignItems: 'center' },
+  spinScroll: { alignItems: 'center', paddingHorizontal: 20, paddingBottom: 100, paddingTop: 10 },
+  profileScroll: { padding: 20, paddingBottom: 120 },
 
   // Navigation & Misc
   header: { padding: 18, paddingBottom: 8 },
@@ -2641,7 +2649,7 @@ const styles = StyleSheet.create({
   // ── Streak Modal ──────────────────────────────
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   streakModalCard: {
-    backgroundColor: 'white', borderRadius: 32, padding: 32, width: '100%', alignItems: 'center',
+    borderRadius: 32, padding: 32, width: '100%', alignItems: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.25, shadowRadius: 32, elevation: 20
   },
   streakDot: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
