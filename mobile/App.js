@@ -172,6 +172,28 @@ const CoinBadge = ({ amount, onPress }) => {
   );
 };
 
+const NewArrivalsAnimation = ({ theme }) => {
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.2, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <Animated.View style={{ transform: [{ scale: pulse }] }}>
+        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS[theme].primary + '15', justifyContent: 'center', alignItems: 'center' }}>
+          <Sparkles size={42} color={COLORS[theme].primary} />
+        </View>
+      </Animated.View>
+    </View>
+  );
+};
+
 // --- SCREENS ---
 
 function LoadingScreen() {
@@ -599,6 +621,8 @@ function SpinScreen() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [adLoaded, setAdLoaded] = useState(false);
   const [adPreparing, setAdPreparing] = useState(false);
+  const [wonAmount, setWonAmount] = useState(0);
+  const [showResultModal, setShowResultModal] = useState(false);
   const adProgress = useRef(new Animated.Value(0)).current;
   const rotation = useRef(new Animated.Value(0)).current;
   const currentAngle = useRef(0);
@@ -727,7 +751,8 @@ function SpinScreen() {
         }));
 
         setIsSpinning(false);
-        // Requirement: Auto-collect (no alert modal)
+        setWonAmount(reward);
+        setShowResultModal(true);
       }
     });
   };
@@ -776,6 +801,34 @@ function SpinScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+      {/* 🎰 Spin Result Modal */}
+      <Modal visible={showResultModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.streakModalCard, { borderRadius: 32 }]}>
+            <View style={[styles.alertIconBox, { backgroundColor: '#FBBF2418', marginBottom: 20 }]}>
+              <Coins size={32} color="#FBBF24" fill="#FBBF24" />
+            </View>
+            <AppText variant="bold" style={{ fontSize: 28, color: COLORS[theme].text }}>Congratulations!</AppText>
+            <AppText style={{ color: COLORS[theme].subText, fontSize: 16, marginTop: 10, textAlign: 'center' }}>
+              You have won
+            </AppText>
+            <View style={styles.streakCoinBox}>
+              <Coins size={24} color="#FBBF24" fill="#FBBF24" />
+              <AppText variant="bold" style={{ fontSize: 32, color: '#D97706', marginLeft: 10 }}>{wonAmount}</AppText>
+            </View>
+            <AppText style={{ color: COLORS[theme].subText, fontSize: 14, marginTop: 24 }}>
+              Total Balance: <AppText variant="bold" style={{ color: COLORS[theme].text }}>{userData.coins} coins</AppText>
+            </AppText>
+            <TouchableOpacity
+              style={[styles.streakClaimBtn, { width: '100%', marginTop: 32 }]}
+              onPress={() => setShowResultModal(false)}
+            >
+              <AppText variant="bold" style={{ color: 'white', textAlign: 'center', fontSize: 16 }}>Awesome!</AppText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 20, paddingBottom: 100, paddingTop: 10 }} showsVerticalScrollIndicator={false}>
         <AppText variant="bold" style={[styles.mainHeading, { color: COLORS[theme].text }]}>🎰 Spin & Win</AppText>
 
@@ -1013,10 +1066,12 @@ function NewArrivalScreen({ navigation }) {
             );
           }}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Sparkles size={52} color={COLORS[theme].primary + '40'} />
-              <AppText variant="semibold" style={{ color: COLORS[theme].subText, marginTop: 14, fontSize: 16 }}>No new arrivals yet</AppText>
-              <AppText style={{ color: COLORS[theme].subText, fontSize: 13, marginTop: 6 }}>Check back soon!</AppText>
+            <View style={[styles.emptyState, { paddingTop: 60 }]}>
+              <NewArrivalsAnimation theme={theme} />
+              <AppText variant="bold" style={{ color: COLORS[theme].text, marginTop: 24, fontSize: 20 }}>Stay Tuned!</AppText>
+              <AppText style={{ color: COLORS[theme].subText, fontSize: 14, marginTop: 8, textAlign: 'center', paddingHorizontal: 40, lineHeight: 20 }}>
+                New prompts are on the way! We're curating the freshest inspiration for you.
+              </AppText>
             </View>
           }
           ListFooterComponent={visibleCount < allNewPrompts.length && (
@@ -1180,7 +1235,7 @@ function ProfileScreen({ navigation }) {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.spinScroll} showsVerticalScrollIndicator={false}>
         {/* Profile Hero Card */}
         <View style={[styles.profileHeroCard, { backgroundColor: C.card }]}>
           <View style={[styles.profileAvatarRing, { borderColor: C.primary + '40' }]}>
@@ -1374,7 +1429,7 @@ function SubscriptionScreen({ navigation }) {
       return;
     }
     if (userData.coins < plan.price) {
-      showAlert('Low Coins', `You need ${plan.price - userData.coins} more coins.`, [{ text: 'Get Coins', onPress: () => navigation.navigate('Spin') }, { text: 'Cancel', style: 'cancel' }], 'error');
+      showAlert('Low Coins', `You need ${plan.price - userData.coins} more coins.`, [{ text: 'Get Coins', onPress: () => navigation.navigate('T', { screen: 'Spin' }) }, { text: 'Cancel', style: 'cancel' }], 'error');
       return;
     }
 
@@ -1406,7 +1461,7 @@ function SubscriptionScreen({ navigation }) {
       return;
     }
     if (userData.coins < 250) {
-      showAlert('Low Coins', 'Premium Pass costs 250 coins.', [{ text: 'Get Coins', onPress: () => navigation.navigate('Spin') }, { text: 'Back', style: 'cancel' }], 'error');
+      showAlert('Low Coins', 'Premium Pass costs 250 coins.', [{ text: 'Get Coins', onPress: () => navigation.navigate('T', { screen: 'Spin' }) }, { text: 'Back', style: 'cancel' }], 'error');
       return;
     }
 
@@ -1600,6 +1655,11 @@ function DetailsScreen({ route, navigation }) {
   const isFav = userData.favorites.includes(item.id);
   const [imgLoading, setImgLoading] = useState(true);
   const [adLoaded, setAdLoaded] = useState(false);
+  const visitsRef = useRef(userData.detailVisits || 0);
+
+  useEffect(() => {
+    visitsRef.current = (userData.detailVisits || 0) + 1;
+  }, [userData.detailVisits]);
 
   // Requirement: Interstitial after 3/4 detail views (on leave)
   useEffect(() => {
@@ -1607,7 +1667,8 @@ function DetailsScreen({ route, navigation }) {
 
     if (!interstitialAd.loaded) interstitialAd.load();
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      if (visits % 3 === 0 && interstitialAd.loaded) {
+      // Use Ref value to avoid stale closure issues
+      if (visitsRef.current % 3 === 0 && interstitialAd.loaded) {
         interstitialAd.show();
       }
     });
@@ -1643,7 +1704,7 @@ function DetailsScreen({ route, navigation }) {
     }
 
     if (!isFree && userData.coins < cost) {
-      showAlert('Insufficient Coins', `You need ${cost - userData.coins} more coins.`, [{ text: 'Get Coins', onPress: () => navigation.navigate('Spin') }, { text: 'Close', style: 'cancel' }], 'error');
+      showAlert('Insufficient Coins', `You need ${cost - userData.coins} more coins.`, [{ text: 'Get Coins', onPress: () => navigation.navigate('T', { screen: 'Spin' }) }, { text: 'Close', style: 'cancel' }], 'error');
       return;
     }
 
