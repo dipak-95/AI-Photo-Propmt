@@ -804,26 +804,38 @@ function SpinScreen() {
       {/* 🎰 Spin Result Modal */}
       <Modal visible={showResultModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.streakModalCard, { borderRadius: 32 }]}>
-            <View style={[styles.alertIconBox, { backgroundColor: '#FBBF2418', marginBottom: 20 }]}>
-              <Coins size={32} color="#FBBF24" fill="#FBBF24" />
+          <View style={[styles.streakModalCard, { backgroundColor: COLORS[theme].card }]}>
+            <View style={[styles.alertIconBox, { backgroundColor: COLORS[theme].coin + '18', marginBottom: 15 }]}>
+              <Coins size={36} color={COLORS[theme].coin} fill={COLORS[theme].coin} />
             </View>
-            <AppText variant="bold" style={{ fontSize: 28, color: COLORS[theme].text }}>Congratulations!</AppText>
-            <AppText style={{ color: COLORS[theme].subText, fontSize: 16, marginTop: 10, textAlign: 'center' }}>
-              You have won
+            <AppText variant="bold" style={{ fontSize: 26, color: COLORS[theme].text, textAlign: 'center' }}>Congratulations!</AppText>
+            <AppText style={{ color: COLORS[theme].subText, fontSize: 15, marginTop: 8, textAlign: 'center' }}>
+              You have won a lucky reward
             </AppText>
-            <View style={styles.streakCoinBox}>
-              <Coins size={24} color="#FBBF24" fill="#FBBF24" />
-              <AppText variant="bold" style={{ fontSize: 32, color: '#D97706', marginLeft: 10 }}>{wonAmount}</AppText>
+            
+            <View style={[styles.streakCoinBox, { 
+              backgroundColor: theme === 'dark' ? '#2D1E10' : '#FFF7ED',
+              borderColor: COLORS[theme].coin + '30',
+              borderWidth: 1,
+              marginTop: 24 
+            }]}>
+              <Coins size={28} color={COLORS[theme].coin} fill={COLORS[theme].coin} />
+              <AppText variant="bold" style={{ fontSize: 34, color: COLORS[theme].coin, marginLeft: 12 }}>{wonAmount}</AppText>
             </View>
-            <AppText style={{ color: COLORS[theme].subText, fontSize: 14, marginTop: 24 }}>
-              Total Balance: <AppText variant="bold" style={{ color: COLORS[theme].text }}>{userData.coins} coins</AppText>
-            </AppText>
+            
+            <View style={{ marginTop: 20, alignItems: 'center' }}>
+              <AppText style={{ color: COLORS[theme].subText, fontSize: 13 }}>Total Balance</AppText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                <Coins size={14} color={COLORS[theme].coin} />
+                <AppText variant="bold" style={{ color: COLORS[theme].text, fontSize: 16, marginLeft: 6 }}>{userData.coins} coins</AppText>
+              </View>
+            </View>
+
             <TouchableOpacity
-              style={[styles.streakClaimBtn, { width: '100%', marginTop: 32 }]}
+              style={[styles.streakClaimBtn, { width: '100%', marginTop: 32, backgroundColor: COLORS[theme].primary }]}
               onPress={() => setShowResultModal(false)}
             >
-              <AppText variant="bold" style={{ color: 'white', textAlign: 'center', fontSize: 16 }}>Awesome!</AppText>
+              <AppText variant="bold" style={{ color: 'white', textAlign: 'center', fontSize: 16 }}>Awesome! 🎉</AppText>
             </TouchableOpacity>
           </View>
         </View>
@@ -2466,10 +2478,15 @@ function StreakModalContent({ streak, coins, voucher, onClose }) {
       <View style={{ width: '100%', alignItems: 'center' }}>
         <Animated.View style={[
           styles.streakCoinBox,
-          { transform: [{ scale: coinAnim }] }
+          { 
+            transform: [{ scale: coinAnim }],
+            backgroundColor: theme === 'dark' ? '#2D1E10' : '#FFF7ED',
+            borderColor: '#F59E0B30',
+            borderWidth: 1
+          }
         ]}>
-          <Coins size={22} color="#F59E0B" fill="#F59E0B" />
-          <AppText variant="bold" style={{ color: '#D97706', fontSize: 24, marginLeft: 8 }}>+{coins} Coins</AppText>
+          <Coins size={24} color="#F59E0B" fill="#F59E0B" />
+          <AppText variant="bold" style={{ color: '#D97706', fontSize: 24, marginLeft: 10 }}>+{coins} Coins</AppText>
         </Animated.View>
 
         {voucher && (
@@ -2657,7 +2674,7 @@ const styles = StyleSheet.create({
   },
   streakDot: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   streakCoinBox: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF7ED', borderRadius: 20, paddingHorizontal: 24, paddingVertical: 14, marginTop: 20,
+    flexDirection: 'row', alignItems: 'center', borderRadius: 20, paddingHorizontal: 24, paddingVertical: 14, marginTop: 20,
     shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12, elevation: 6
   },
   streakClaimBtn: {
