@@ -672,19 +672,35 @@ function SpinScreen() {
   const WHEEL_SIZE = 290;
   const navigation = useNavigation();
 
+  const lastRewardTime = useRef(0);
+
   // Load rewarded ad
   useEffect(() => {
     const unsubLoaded = rewardedAd.addAdEventListener(RewardedAdEventType.LOADED, () => {
       console.log('Rewarded Ad Loaded');
     });
+    
     const unsubEarned = rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward) => {
-      updateUserData(prev => ({ spinTickets: (prev.spinTickets || 0) + 1 }));
-      showAlert('Reward Earned!', 'You got 1 extra spin ticket! 🎫', [{ text: 'Awesome' }], 'success');
+      // Throttle reward to prevent double-firing bugs (SDK or Strict Mode)
+      const now = Date.now();
+      if (now - lastRewardTime.current > 2000) {
+        lastRewardTime.current = now;
+        updateUserData(prev => ({ spinTickets: (prev.spinTickets || 0) + 1 }));
+        showAlert('Reward Earned!', 'You got 1 extra spin ticket! 🎫', [{ text: 'Awesome' }], 'success');
+      }
     });
+
+    // Auto load next ad when closed
+    const unsubClosed = rewardedAd.addAdEventListener(AdEventType.CLOSED, () => {
+      rewardedAd.load();
+    });
+
     rewardedAd.load();
+    
     return () => {
       unsubLoaded();
       unsubEarned();
+      unsubClosed();
     };
   }, []);
 
