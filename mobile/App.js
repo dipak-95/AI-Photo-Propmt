@@ -490,7 +490,7 @@ function HomeScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]} edges={['top', 'left', 'right']}>
       {/* Premium top bar */}
       <View style={[styles.topBar, {
         backgroundColor: COLORS[theme].background,
@@ -800,7 +800,7 @@ function SpinScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]} edges={['top', 'left', 'right']}>
       {/* 🎰 Spin Result Modal */}
       <Modal visible={showResultModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -1031,7 +1031,7 @@ function NewArrivalScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]} edges={['top', 'left', 'right']}>
       <View style={styles.screenHeader}>
         <View>
           <AppText variant="bold" style={[styles.screenHeaderTitle, { color: COLORS[theme].text }]}>New Arrivals</AppText>
@@ -1120,7 +1120,7 @@ function FavoritesScreen({ navigation }) {
   }, [favs]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]} edges={['top', 'left', 'right']}>
       <View style={styles.screenHeader}>
         <View>
           <AppText variant="bold" style={[styles.screenHeaderTitle, { color: COLORS[theme].text }]}>Saved</AppText>
@@ -1180,7 +1180,7 @@ function FavoritesScreen({ navigation }) {
 function PrivacyPolicyScreen({ navigation }) {
   const { theme } = useContext(UserContext);
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]} edges={['top', 'left', 'right']}>
       <View style={styles.navHeader}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.navBackBtn, { backgroundColor: COLORS[theme].card }]}>
           <ChevronLeft color={COLORS[theme].text} size={22} />
@@ -1226,7 +1226,7 @@ function ProfileScreen({ navigation }) {
   ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.navHeader}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.navBackBtn, { backgroundColor: C.card }]}>
           <ChevronLeft color={C.text} size={22} />
@@ -1491,7 +1491,7 @@ function SubscriptionScreen({ navigation }) {
 
   const C = COLORS[theme];
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.navHeader}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.navBackBtn, { backgroundColor: C.card }]}>
           <ChevronLeft color={C.text} size={22} />
@@ -1652,6 +1652,7 @@ function SubscriptionScreen({ navigation }) {
 function DetailsScreen({ route, navigation }) {
   const { item } = route.params;
   const { theme, userData = {}, updateUserData, hasSubscription = false, showAlert } = useContext(UserContext);
+  const insets = useSafeAreaInsets();
   const isPremium = item.tier === 'premium' || item.isPremium;
   const hasPass = (userData?.premiumPassExpiry || 0) > Date.now();
   const isUnlocked = (userData?.unlockedIds || []).includes(item.id) || hasSubscription;
@@ -1752,11 +1753,11 @@ function DetailsScreen({ route, navigation }) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
+    <View style={[styles.container, { backgroundColor: COLORS[theme].background }]}>
       <StatusBar style="light" />
 
       {/* Scrollable Content */}
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 20 }} bounces={false}>
         <View style={styles.detailImageWrapper}>
           {imgLoading && (
             <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS[theme].border + '20', zIndex: 1 }]}>
@@ -1772,7 +1773,7 @@ function DetailsScreen({ route, navigation }) {
           />
 
           {/* Top Floating Buttons */}
-          <View style={[styles.floatingHeader, { paddingTop: 50 }]}>
+          <View style={[styles.floatingHeader, { paddingTop: insets.top + 10 }]}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.floatingActionBtn, { backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }]}>
               <ChevronLeft color="white" size={24} />
             </TouchableOpacity>
@@ -1837,7 +1838,7 @@ function DetailsScreen({ route, navigation }) {
           onAdFailedToLoad={() => setAdLoaded(false)}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -1853,7 +1854,8 @@ function TabNavigator() {
       tabBarStyle: {
         backgroundColor: C.card,
         borderTopWidth: 0,
-        height: 68,
+        height: Platform.OS === 'ios' ? 88 : 74,
+        paddingBottom: Platform.OS === 'ios' ? 24 : 12,
         shadowColor: C.cardShadow,
         shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.08,
@@ -2142,6 +2144,7 @@ export default function App() {
         })
       }}>
         <SafeAreaProvider>
+          <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
           <NavigationContainer>
             <Stack.Navigator screenOptions={{ headerShown: false }}>
               <Stack.Screen name="T" component={TabNavigator} />
