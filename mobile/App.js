@@ -1248,6 +1248,75 @@ function FavoritesScreen({ navigation }) {
   );
 }
 
+function UnlockedPromptsScreen({ navigation }) {
+  const { theme, userData, hasSubscription } = useContext(UserContext);
+  const [unlockedItems, setUnlockedItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUnlocked = async () => {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        const unlockedIds = userData.unlockedIds || [];
+        const filtered = data.filter(i => unlockedIds.includes(i.id));
+        setUnlockedItems(filtered);
+      } catch (e) { } finally { setLoading(false); }
+    };
+    fetchUnlocked();
+  }, [userData.unlockedIds]);
+
+  const displayData = useMemo(() => {
+    return organizeIntoGrid(unlockedItems);
+  }, [unlockedItems]);
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS[theme].background }]} edges={['top', 'left', 'right']}>
+      <View style={styles.navHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.navBackBtn, { backgroundColor: COLORS[theme].card }]}>
+          <ChevronLeft color={COLORS[theme].text} size={22} />
+        </TouchableOpacity>
+        <AppText variant="bold" style={[styles.navHeaderTitle, { color: COLORS[theme].text }]}>Unlocked</AppText>
+        <View style={{ width: 40 }} />
+      </View>
+
+      {loading ? <LoadingScreen /> : (
+        <FlatList
+          data={displayData}
+          numColumns={1}
+          contentContainerStyle={styles.listContent}
+          keyExtractor={(item, index) => (item.type === 'ad' ? item.id : index.toString())}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => {
+            if (item.type === 'ad') return <AdCard theme={theme} />;
+            return (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                {item.items.map((prompt) => (
+                  <PromptCard
+                    key={prompt.id}
+                    item={prompt}
+                    isLocked={false}
+                    isPremium={prompt.tier === 'premium'}
+                    onPress={() => navigation.navigate('Details', { item: prompt })}
+                  />
+                ))}
+                {item.items.length === 1 && <View style={{ width: (width / 2) - 24 }} />}
+              </View>
+            );
+          }}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Unlock size={52} color={COLORS[theme].primary + '40'} />
+              <AppText variant="semibold" style={{ color: COLORS[theme].subText, marginTop: 14, fontSize: 16 }}>Nothing unlocked yet</AppText>
+              <AppText style={{ color: COLORS[theme].subText, fontSize: 13, marginTop: 6, textAlign: 'center' }}>Unlock premium prompts with coins or by spinning the wheel!</AppText>
+            </View>
+          }
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
 function PrivacyPolicyScreen({ navigation }) {
   const { theme } = useContext(UserContext);
   return (
@@ -1357,15 +1426,15 @@ function ProfileScreen({ navigation }) {
               <AppText style={[styles.statLabel, { color: C.subText }]}>Coins</AppText>
             </View>
             <View style={[styles.statDivider, { backgroundColor: C.border }]} />
-            <View style={styles.statItem}>
+            <TouchableOpacity onPress={() => navigation.navigate('UnlockedPrompts')} style={styles.statItem}>
               <AppText variant="bold" style={[styles.statValue, { color: C.primary }]}>{(userData.unlockedIds || []).length}</AppText>
               <AppText style={[styles.statLabel, { color: C.subText }]}>Unlocked</AppText>
-            </View>
+            </TouchableOpacity>
             <View style={[styles.statDivider, { backgroundColor: C.border }]} />
-            <View style={styles.statItem}>
+            <TouchableOpacity onPress={() => navigation.navigate('Saved')} style={styles.statItem}>
               <AppText variant="bold" style={[styles.statValue, { color: '#EF4444' }]}>{(userData.favorites || []).length}</AppText>
               <AppText style={[styles.statLabel, { color: C.subText }]}>Saved</AppText>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -2229,6 +2298,8 @@ export default function App() {
               <Stack.Screen name="Profile" component={ProfileScreen} />
               <Stack.Screen name="Subscription" component={SubscriptionScreen} />
               <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+              <Stack.Screen name="UnlockedPrompts" component={UnlockedPromptsScreen} />
+              <Stack.Screen name="Saved" component={FavoritesScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         </SafeAreaProvider>
