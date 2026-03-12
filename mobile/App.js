@@ -1903,14 +1903,20 @@ const Stack = createStackNavigator();
 function TabNavigator() {
   const { theme } = useContext(UserContext);
   const C = COLORS[theme];
+  const insets = useSafeAreaInsets();
+  
+  // Base height plus the required safe area inset for buttons or gesture bar
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 12);
+  const barHeight = 62 + bottomPadding;
+
   return (
     <Tab.Navigator screenOptions={({ route }) => ({
       headerShown: false,
       tabBarStyle: {
         backgroundColor: C.card,
         borderTopWidth: 0,
-        height: Platform.OS === 'ios' ? 88 : 74,
-        paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+        height: barHeight,
+        paddingBottom: bottomPadding,
         shadowColor: C.cardShadow,
         shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.08,
