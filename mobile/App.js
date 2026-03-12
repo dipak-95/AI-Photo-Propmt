@@ -173,22 +173,65 @@ const CoinBadge = ({ amount, onPress }) => {
 };
 
 const NewArrivalsAnimation = ({ theme }) => {
-  const pulse = useRef(new Animated.Value(1)).current;
+  const pulseAnim1 = useRef(new Animated.Value(0)).current;
+  const pulseAnim2 = useRef(new Animated.Value(0)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.2, duration: 1000, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 1000, useNativeDriver: true }),
-      ])
-    ).start();
+    const createPulse = (anim, delay) => {
+      return Animated.sequence([
+        Animated.delay(delay),
+        Animated.loop(
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 2500,
+            useNativeDriver: true,
+            easing: Easing.out(Easing.ease),
+          })
+        )
+      ]);
+    };
+
+    Animated.parallel([
+      createPulse(pulseAnim1, 0),
+      createPulse(pulseAnim2, 1250),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(floatAnim, { toValue: -12, duration: 1500, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+          Animated.timing(floatAnim, { toValue: 0, duration: 1500, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+        ])
+      )
+    ]).start();
   }, []);
 
+  const getRippleStyle = (anim) => ({
+    position: 'absolute',
+    width: 100, height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS[theme].primary,
+    opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
+    transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 2.2] }) }]
+  });
+
   return (
-    <View style={{ alignItems: 'center' }}>
-      <Animated.View style={{ transform: [{ scale: pulse }] }}>
-        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS[theme].primary + '15', justifyContent: 'center', alignItems: 'center' }}>
-          <Sparkles size={42} color={COLORS[theme].primary} />
-        </View>
+    <View style={{ alignItems: 'center', justifyContent: 'center', height: 200, marginBottom: 10 }}>
+      {/* Background Ripples */}
+      <Animated.View style={getRippleStyle(pulseAnim1)} />
+      <Animated.View style={getRippleStyle(pulseAnim2)} />
+
+      {/* Floating Center Icon */}
+      <Animated.View style={{
+        transform: [{ translateY: floatAnim }],
+        width: 86, height: 86,
+        borderRadius: 43,
+        backgroundColor: COLORS[theme].card,
+        borderWidth: 2,
+        borderColor: COLORS[theme].primary + '80',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: COLORS[theme].primary, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.4, shadowRadius: 20, elevation: 12
+      }}>
+        <Sparkles size={40} color={COLORS[theme].primary} fill={COLORS[theme].primary} />
       </Animated.View>
     </View>
   );
@@ -1078,11 +1121,11 @@ function NewArrivalScreen({ navigation }) {
             );
           }}
           ListEmptyComponent={
-            <View style={[styles.emptyState, { paddingTop: 60 }]}>
+            <View style={[styles.emptyState, { paddingTop: 40 }]}>
               <NewArrivalsAnimation theme={theme} />
-              <AppText variant="bold" style={{ color: COLORS[theme].text, marginTop: 24, fontSize: 20 }}>Stay Tuned!</AppText>
-              <AppText style={{ color: COLORS[theme].subText, fontSize: 14, marginTop: 8, textAlign: 'center', paddingHorizontal: 40, lineHeight: 20 }}>
-                New prompts are on the way! We're curating the freshest inspiration for you.
+              <AppText variant="bold" style={{ color: COLORS[theme].text, marginTop: 10, fontSize: 24 }}>Stay Tuned!</AppText>
+              <AppText style={{ color: COLORS[theme].subText, fontSize: 15, marginTop: 12, textAlign: 'center', paddingHorizontal: 30, lineHeight: 22 }}>
+                We're crafting fresh inspiration! New AI prompts will arrive here shortly.
               </AppText>
             </View>
           }
