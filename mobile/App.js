@@ -2156,7 +2156,7 @@ export default function App() {
         })
       }}>
         <SafeAreaProvider>
-          <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+          <StatusBar style="dark" />
           <NavigationContainer>
             <Stack.Navigator screenOptions={{ headerShown: false }}>
               <Stack.Screen name="T" component={TabNavigator} />
