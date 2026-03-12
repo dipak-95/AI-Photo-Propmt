@@ -70,7 +70,7 @@ const shuffleWithSeed = (array, seed) => {
 // --- CONSTANTS ---
 const API_URL = 'https://sdkv.online/api/prompts';
 const CONFIG_URL = 'https://sdkv.online/api/config';
-const CURRENT_VERSION = '4.1.0';
+const CURRENT_VERSION = '4.0.1';
 
 const PROMPT_COST = 25; // coins
 const FREE_SPIN_COOLDOWN = 2 * 60 * 60 * 1000; // 2 Hours
@@ -2135,10 +2135,19 @@ export default function App() {
         const configRes = await fetch(CONFIG_URL);
         const configData = await configRes.json();
         const serverVersion = configData.version || '1.0.0';
-        const serverMajor = parseInt(serverVersion.split('.')[0]);
-        const currentMajor = parseInt(CURRENT_VERSION.split('.')[0]);
+        
+        // Robust version comparison helper
+        const isOlder = (current, server) => {
+          const c = current.split('.').map(Number);
+          const s = server.split('.').map(Number);
+          for (let i = 0; i < 3; i++) {
+            if ((c[i] || 0) < (s[i] || 0)) return true;
+            if ((c[i] || 0) > (s[i] || 0)) return false;
+          }
+          return false;
+        };
 
-        if (currentMajor < serverMajor) {
+        if (isOlder(CURRENT_VERSION, serverVersion)) {
           showAlert('Update Available', 'A new version of AI Photo Prompt is available! Please update to get the latest features and security.', [
             { text: 'Update Now', onPress: () => Linking.openURL('https://play.google.com/store/apps/details?id=com.dipak.pearlai') }
           ], 'success');
